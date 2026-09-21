@@ -1,0 +1,74 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --color-parchment: #F3EEDB;
+    --color-parchment-light: #FAF7EE;
+    --color-parchment-border: #E3DAC1;
+    --color-sage: #A9C9A9;
+    --color-sage-soft: #EAF2EA;
+    --color-forest: #173B2D;
+    --color-forest-muted: #275643;
+    --color-ink: #202820;
+    --color-gold: #B59A62;
+    --color-gold-light: #CBB177;
+    --color-gold-dark: #8E7541;
+  }
+
+  body {
+    background-color: #F3EEDB;
+    color: #202820;
+    font-family: var(--font-scholarly-sans), system-ui, -apple-system, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+}
+
+/* Typography Utility Classes */
+.font-serif-scholarly {
+  font-family: var(--font-scholarly-serif), 'Cinzel', 'Playfair Display', 'EB Garamond', Georgia, serif;
+}
+
+.font-sans-scholarly {
+  font-family: var(--font-scholarly-sans), 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+}
+
+/* Custom Scrollbars in Scholarly Style */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #EFE8D3;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #C4B99D;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #A89B7B;
+}
+
+/* Manuscript Paper Elevation */
+.parchment-card {
+  background-color: #FAF7EE;
+  border: 1px solid #E3DAC1;
+  box-shadow: 0 2px 8px -2px rgba(23, 59, 45, 0.05);
+}
+
+.parchment-card-elevated {
+  background-color: #FAF7EE;
+  border: 1px solid #D6CBB0;
+  box-shadow: 0 8px 20px -4px rgba(23, 59, 45, 0.08);
+}
+
+/* Subtle Gold Accent Ring */
+.gold-focus {
+  outline: 2px solid #B59A62;
+  outline-offset: 2px;
+}

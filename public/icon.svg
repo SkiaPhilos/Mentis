@@ -1,0 +1,72 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1E4737" />
+      <stop offset="100%" stop-color="#122E23" />
+    </linearGradient>
+    <linearGradient id="goldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#CBB177" />
+      <stop offset="50%" stop-color="#B59A62" />
+      <stop offset="100%" stop-color="#8E7541" />
+    </linearGradient>
+    <filter id="subtleShadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="8" stdDeviation="12" flood-color="#091711" flood-opacity="0.4" />
+    </filter>
+  </defs>
+
+  <!-- Background Base -->
+  <rect width="512" height="512" rx="112" fill="url(#bgGrad)" />
+
+  <!-- Outer Scholarly Seal Ring -->
+  <circle cx="256" cy="256" r="216" fill="none" stroke="url(#goldGrad)" stroke-width="3" stroke-opacity="0.6" />
+  <circle cx="256" cy="256" r="206" fill="none" stroke="#F3EEDB" stroke-width="1.5" stroke-opacity="0.3" stroke-dasharray="4 6" />
+
+  <!-- Cardinal Accents on Seal -->
+  <circle cx="256" cy="40" r="4" fill="#B59A62" />
+  <circle cx="256" cy="472" r="4" fill="#B59A62" />
+  <circle cx="40" cy="256" r="4" fill="#B59A62" />
+  <circle cx="472" cy="256" r="4" fill="#B59A62" />
+
+  <!-- Inner Parchment Emblem Plate -->
+  <g filter="url(#subtleShadow)">
+    <circle cx="256" cy="256" r="160" fill="#F3EEDB" stroke="url(#goldGrad)" stroke-width="4" />
+    <circle cx="256" cy="256" r="150" fill="none" stroke="#173B2D" stroke-width="1.5" stroke-opacity="0.2" />
+  </g>
+
+  <!-- Open Manuscript & Quill Iconography -->
+  <g id="emblemCore" transform="translate(256, 256)">
+    <!-- Left Page of Manuscript -->
+    <path d="M-100,-40 C-60,-55 -20,-35 0,-20 L0,80 C-20,65 -60,45 -100,60 Z" fill="#EAE3CD" stroke="#173B2D" stroke-width="4" stroke-linejoin="round" />
+    <!-- Right Page of Manuscript -->
+    <path d="M100,-40 C60,-55 20,-35 0,-20 L0,80 C20,65 60,45 100,60 Z" fill="#F7F3E6" stroke="#173B2D" stroke-width="4" stroke-linejoin="round" />
+    <!-- Center Spine Binding -->
+    <path d="M0,-22 L0,84" stroke="#B59A62" stroke-width="4.5" stroke-linecap="round" />
+    
+    <!-- Text Lines Left Page -->
+    <line x1="-80" y1="-15" x2="-20" y2="-5" stroke="#173B2D" stroke-width="3" stroke-linecap="round" stroke-opacity="0.5" />
+    <line x1="-80" y1="5" x2="-20" y2="15" stroke="#173B2D" stroke-width="3" stroke-linecap="round" stroke-opacity="0.5" />
+    <line x1="-70" y1="25" x2="-20" y2="35" stroke="#173B2D" stroke-width="3" stroke-linecap="round" stroke-opacity="0.5" />
+
+    <!-- Text Lines Right Page -->
+    <line x1="20" y1="-5" x2="80" y2="-15" stroke="#173B2D" stroke-width="3" stroke-linecap="round" stroke-opacity="0.5" />
+    <line x1="20" y1="15" x2="80" y2="5" stroke="#173B2D" stroke-width="3" stroke-linecap="round" stroke-opacity="0.5" />
+    <line x1="20" y1="35" x2="70" y2="25" stroke="#173B2D" stroke-width="3" stroke-linecap="round" stroke-opacity="0.5" />
+
+    <!-- Scholarly Feather Quill Crossing -->
+    <g transform="rotate(32) translate(15, -45)">
+      <!-- Quill Shaft -->
+      <path d="M0,110 Q-5,40 25,-60 Q35,-90 40,-100 Q40,-70 20,-30 Q5,30 0,110 Z" fill="url(#goldGrad)" stroke="#173B2D" stroke-width="2.5" />
+      <path d="M0,110 L-4,130 L4,115 Z" fill="#173B2D" />
+      <!-- Feather Vanes Detail -->
+      <line x1="12" y1="-40" x2="28" y2="-48" stroke="#173B2D" stroke-width="1.5" stroke-linecap="round" />
+      <line x1="8" y1="-15" x2="24" y2="-22" stroke="#173B2D" stroke-width="1.5" stroke-linecap="round" />
+      <line x1="4" y1="10" x2="18" y2="5" stroke="#173B2D" stroke-width="1.5" stroke-linecap="round" />
+    </g>
+
+    <!-- Celestial 8-Point Knowledge Star -->
+    <g transform="translate(0, -90) scale(0.9)">
+      <path d="M0,-24 L5,-6 L24,0 L5,6 L0,24 L-5,6 L-24,0 L-5,-6 Z" fill="url(#goldGrad)" stroke="#173B2D" stroke-width="1.5" />
+      <circle cx="0" cy="0" r="3" fill="#F3EEDB" />
+    </g>
+  </g>
+</svg>

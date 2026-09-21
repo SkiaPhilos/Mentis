@@ -1,0 +1,6 @@
+{
+  "name": "Mentis",
+  "description": "Your personal scholarly world — an academic sanctuary with books, notes, intelligent study helpers, and an interactive schedule.",
+  "requestFramePermissions": ["camera", "microphone", "geolocation"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
