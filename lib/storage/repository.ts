@@ -4,6 +4,7 @@ import {
   ScheduleBlock,
   CommuteProfile,
   Book,
+  ReadingFocusSession,
   Note,
   LearningSession,
   UserAiCredential,
@@ -17,6 +18,7 @@ const STORAGE_KEYS = {
   SCHEDULE: 'mentis_schedule_blocks',
   COMMUTE: 'mentis_commute_profile',
   BOOKS: 'mentis_books',
+  READING_VIGILS: 'mentis_reading_vigil_sessions',
   NOTES: 'mentis_notes',
   SESSIONS: 'mentis_learning_sessions',
   AI_CREDENTIALS: 'mentis_user_ai_credentials',
@@ -680,6 +682,28 @@ export const MentisRepository = {
   updateBook: (book: Book): void => {
     const list = MentisRepository.getBooks();
     MentisRepository.saveBooks(list.map((b) => (b.id === book.id ? book : b)));
+  },
+
+  deleteBook: (id: string): void => {
+    const list = MentisRepository.getBooks();
+    MentisRepository.saveBooks(list.filter((b) => b.id !== id));
+  },
+
+  // ---------------------------------------------------------------------------
+  // Reading Focus Sessions (Pomodoro Vigils)
+  // ---------------------------------------------------------------------------
+  getReadingSessions: (): ReadingFocusSession[] => {
+    return getLocal<ReadingFocusSession[]>(STORAGE_KEYS.READING_VIGILS, []);
+  },
+
+  saveReadingSessions: (sessions: ReadingFocusSession[]): void => {
+    setLocal(STORAGE_KEYS.READING_VIGILS, sessions);
+    emitChange();
+  },
+
+  logReadingSession: (session: ReadingFocusSession): void => {
+    const list = MentisRepository.getReadingSessions();
+    MentisRepository.saveReadingSessions([session, ...list]);
   },
 
   // ---------------------------------------------------------------------------

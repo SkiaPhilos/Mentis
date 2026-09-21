@@ -58,6 +58,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
   const [credTab, setCredTab] = useState<'api_key' | 'magic_spell'>(
     aiCredentials.unlockMode === 'magic_spell' ? 'magic_spell' : 'api_key'
   );
+  const [rawApiKeyInput, setRawApiKeyInput] = useState('');
   const [isFourthWallOpen, setIsFourthWallOpen] = useState(false);
   const [showApiKey, setShowApiKey] = useState(false);
   const [credSavedSuccess, setCredSavedSuccess] = useState(false);
@@ -85,6 +86,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
     if (e) e.preventDefault();
     const updated: UserAiCredential = {
       ...credForm,
+      apiKey: undefined,
       unlockMode: credTab,
       lastVerifiedAt: new Date().toISOString(),
     };
@@ -94,78 +96,112 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
     setTimeout(() => setCredSavedSuccess(false), 2500);
   };
 
-  const handleTestAndAwaken = () => {
+  const handleTestAndAwaken = async () => {
     setVerificationStatus('testing');
     setVerificationMessage('Communing with the academic ether...');
 
-    setTimeout(() => {
-      if (credTab === 'magic_spell') {
-        const spell = credForm.magicSpell?.trim().toUpperCase() || '';
-        if (ACADEMIC_MAGIC_SPELLS[spell]) {
-          const spellTitle = ACADEMIC_MAGIC_SPELLS[spell];
-          setVerificationStatus('success');
-          setVerificationMessage(`✨ Incantation Accepted: "${spellTitle}" has awakened your Socratic guide personas!`);
-          const updated: UserAiCredential = {
-            ...credForm,
-            magicSpell: spell,
-            isAwakened: true,
-            unlockMode: 'magic_spell',
-            lastVerifiedAt: new Date().toISOString(),
-          };
-          setCredForm(updated);
-          onUpdateAiCredentials(updated);
-        } else if (spell.length > 3) {
-          // Custom institutional spell
-          setVerificationStatus('success');
-          setVerificationMessage(`✨ Academy Passphrase recognized: Socratic tutors awakened via Institutional Relay.`);
-          const updated: UserAiCredential = {
-            ...credForm,
-            magicSpell: spell,
-            isAwakened: true,
-            unlockMode: 'magic_spell',
-            lastVerifiedAt: new Date().toISOString(),
-          };
-          setCredForm(updated);
-          onUpdateAiCredentials(updated);
-        } else {
-          setVerificationStatus('error');
-          setVerificationMessage('Unknown incantation. Try: MENTIS_ACADEMIA_2026 or NOCTIS_LUCIS_SOCRATIS');
-        }
+    if (credTab === 'magic_spell') {
+      const spell = credForm.magicSpell?.trim().toUpperCase() || '';
+      if (ACADEMIC_MAGIC_SPELLS[spell]) {
+        const spellTitle = ACADEMIC_MAGIC_SPELLS[spell];
+        setVerificationStatus('success');
+        setVerificationMessage(`✨ Incantation Accepted: "${spellTitle}" has awakened your Socratic guide personas!`);
+        const updated: UserAiCredential = {
+          ...credForm,
+          apiKey: undefined,
+          magicSpell: spell,
+          isAwakened: true,
+          unlockMode: 'magic_spell',
+          lastVerifiedAt: new Date().toISOString(),
+        };
+        setCredForm(updated);
+        onUpdateAiCredentials(updated);
+      } else if (spell.length > 3) {
+        // Custom institutional spell
+        setVerificationStatus('success');
+        setVerificationMessage(`✨ Academy Passphrase recognized: Socratic tutors awakened via Institutional Relay.`);
+        const updated: UserAiCredential = {
+          ...credForm,
+          apiKey: undefined,
+          magicSpell: spell,
+          isAwakened: true,
+          unlockMode: 'magic_spell',
+          lastVerifiedAt: new Date().toISOString(),
+        };
+        setCredForm(updated);
+        onUpdateAiCredentials(updated);
       } else {
-        // API Key mode
-        const key = credForm.apiKey?.trim() || '';
-        if (key.length >= 16) {
-          setVerificationStatus('success');
-          setVerificationMessage(`🟢 Key verified for ${credForm.provider.toUpperCase()} (${credForm.modelPreference || 'flash'}). Socratic guides are awake and responsive.`);
-          const updated: UserAiCredential = {
-            ...credForm,
-            apiKey: key,
-            isAwakened: true,
-            unlockMode: 'api_key',
-            lastVerifiedAt: new Date().toISOString(),
-          };
-          setCredForm(updated);
-          onUpdateAiCredentials(updated);
-        } else {
-          setVerificationStatus('error');
-          setVerificationMessage('Invalid API key format. Please enter a valid provider key (minimum 16 characters).');
-        }
+        setVerificationStatus('error');
+        setVerificationMessage('Unknown incantation. Try: MENTIS_ACADEMIA_2026 or NOCTIS_LUCIS_SOCRATIS');
       }
-    }, 450);
+    } else {
+      // API Key mode: securely seal server-side via AES-256-GCM vault
+      const keyToEncrypt = rawApiKeyInput.trim();
+      if (keyToEncrypt) {
+        try {
+          const res = await fetch('/api/ai/key', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              apiKey: keyToEncrypt,
+              provider: credForm.provider,
+              model: credForm.modelPreference || 'gemini-3.8-flash',
+            }),
+          });
+          const data = await res.json();
+          if (res.ok && data.success) {
+            setVerificationStatus('success');
+            setVerificationMessage(`🟢 Key encrypted with AES-256-GCM and sealed in vault (${data.maskedKey}). Socratic guides are awake.`);
+            const updated: UserAiCredential = {
+              ...credForm,
+              apiKey: undefined, // Never keep raw key on client
+              encryptedKey: data.encryptedKey,
+              maskedKey: data.maskedKey,
+              isAwakened: true,
+              unlockMode: 'api_key',
+              lastVerifiedAt: new Date().toISOString(),
+            };
+            setCredForm(updated);
+            onUpdateAiCredentials(updated);
+            setRawApiKeyInput('');
+          } else {
+            setVerificationStatus('error');
+            setVerificationMessage(data.error || 'Failed to encrypt key.');
+          }
+        } catch {
+          setVerificationStatus('error');
+          setVerificationMessage('Failed to communicate with key vault endpoint.');
+        }
+      } else if (credForm.encryptedKey || credForm.maskedKey) {
+        setVerificationStatus('success');
+        setVerificationMessage(`🟢 Existing vault key is sealed (${credForm.maskedKey || 'AES-256-GCM'}). Guides are awake.`);
+      } else {
+        setVerificationStatus('error');
+        setVerificationMessage('Please enter an API key to encrypt and seal in your scholarly vault (minimum 16 characters).');
+      }
+    }
   };
 
-  const handleRevokeCredentials = () => {
+  const handleRevokeCredentials = async () => {
+    try {
+      await fetch('/api/ai/key', { method: 'DELETE' });
+    } catch {
+      // Best-effort remote revocation
+    }
     const revoked: UserAiCredential = {
       ...credForm,
-      apiKey: '',
+      apiKey: undefined,
+      encryptedKey: undefined,
+      maskedKey: undefined,
       magicSpell: '',
       isAwakened: false,
       unlockMode: 'none',
     };
     setCredForm(revoked);
+    setRawApiKeyInput('');
     onUpdateAiCredentials(revoked);
     setVerificationStatus('idle');
-    setVerificationMessage('Credentials revoked. AI tutors returned to dormant stasis.');
+    setVerificationMessage('Credentials revoked and vault purged. AI tutors returned to dormant stasis.');
   };
 
   const handleCreateCourse = (e: React.FormEvent) => {
@@ -561,18 +597,39 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
               </div>
             </div>
 
+            {credForm.maskedKey && (
+              <div className="flex items-center justify-between p-3 rounded-xl bg-[#FAF7EE] border border-[#E3DAC1]">
+                <div className="flex items-center gap-2">
+                  <ShieldCheck className="w-4 h-4 text-[#173B2D]" />
+                  <div>
+                    <p className="text-xs font-serif-scholarly font-bold text-[#173B2D]">
+                      Vault Key Active: <span className="font-mono">{credForm.maskedKey}</span>
+                    </p>
+                    <p className="text-[10px] text-[#202820]/70 font-mono">
+                      Ciphertext sealed with AES-256-GCM · Plaintext never stored in client
+                    </p>
+                  </div>
+                </div>
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-semibold bg-[#173B2D]/10 text-[#173B2D]">
+                  Encrypted Vault
+                </span>
+              </div>
+            )}
+
             <div>
               <label className="block text-xs font-serif-scholarly font-semibold text-[#173B2D] mb-1">
-                Provider API Key
+                {credForm.maskedKey ? 'Update Provider API Key' : 'Provider API Key'}
               </label>
               <div className="relative">
                 <input
                   id="ai-key-input"
                   type={showApiKey ? 'text' : 'password'}
-                  value={credForm.apiKey || ''}
-                  onChange={(e) => setCredForm({ ...credForm, apiKey: e.target.value })}
+                  value={rawApiKeyInput}
+                  onChange={(e) => setRawApiKeyInput(e.target.value)}
                   placeholder={
-                    credForm.provider === 'gemini'
+                    credForm.maskedKey
+                      ? `Vault is sealed (${credForm.maskedKey}) — paste new key to replace`
+                      : credForm.provider === 'gemini'
                       ? 'AIzaSy... (Google AI Studio Key)'
                       : credForm.provider === 'openai'
                       ? 'sk-proj-... (OpenAI Key)'
@@ -588,8 +645,8 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                   {showApiKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
               </div>
-              <p className="mt-1 text-[11px] text-[#202820]/60">
-                Your key is kept in browser vault storage and never transmitted to untrusted third parties.
+              <p className="mt-1 text-[11px] text-[#202820]/60 font-sans">
+                Keys are encrypted server-side with AES-256-GCM. Raw plaintext keys are never stored in browser storage.
               </p>
             </div>
           </div>

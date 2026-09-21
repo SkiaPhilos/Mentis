@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { Note, Course, NoteBlock } from '@/types/mentis';
+import { MentisRepository } from '@/lib/storage/repository';
 import { ScholarlyNotesIcon } from '@/components/icons/ScholarlyIcons';
 import { Plus, Trash2, Tag, Search, Sparkles, ArrowLeft, BookOpen, Quote, Code, Heading } from 'lucide-react';
 
@@ -119,6 +120,7 @@ export const NotesView: React.FC<NotesViewProps> = ({
     if (!activeNote) return;
     setIsGeneratingAI(true);
     try {
+      const aiCreds = MentisRepository.getAiCredentials();
       const textCorpus = activeNote.blocks.map((b) => b.content).join('\n');
       const response = await fetch('/api/ai/summarize', {
         method: 'POST',
@@ -126,6 +128,9 @@ export const NotesView: React.FC<NotesViewProps> = ({
         body: JSON.stringify({
           text: textCorpus,
           title: activeNote.title,
+          encryptedKey: aiCreds.encryptedKey || undefined,
+          magicSpell: aiCreds.magicSpell || undefined,
+          model: aiCreds.modelPreference || 'gemini-3.8-flash',
         }),
       });
 
@@ -144,6 +149,18 @@ export const NotesView: React.FC<NotesViewProps> = ({
             updatedAt: new Date().toISOString(),
           });
         }
+      } else {
+        const errData = await response.json().catch(() => ({}));
+        const noticeBlock: NoteBlock = {
+          id: createScholarlyId('notice'),
+          type: 'quote',
+          content: `[Synthesis Stasis]: ${errData.message || 'AI not configured. Seal a Magical Key in Profile > Scholarly Arcana to awaken the synthesis engine.'}`,
+        };
+        onUpdateNote({
+          ...activeNote,
+          blocks: [noticeBlock, ...activeNote.blocks],
+          updatedAt: new Date().toISOString(),
+        });
       }
     } catch (e) {
       console.warn('AI summary error:', e);

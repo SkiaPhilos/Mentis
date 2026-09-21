@@ -84,6 +84,9 @@ export const LearningSanctuaryView: React.FC<LearningSanctuaryViewProps> = ({ co
 
   const [localKeyInput, setLocalKeyInput] = useState<string>('');
   const [isKeyDrawerOpen, setIsKeyDrawerOpen] = useState<boolean>(false);
+  const [isKeySaving, setIsKeySaving] = useState<boolean>(false);
+  const [keyFeedbackMsg, setKeyFeedbackMsg] = useState<string | null>(null);
+  const [keyErrorMsg, setKeyErrorMsg] = useState<string | null>(null);
 
   const [inputMessage, setInputMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -103,20 +106,90 @@ export const LearningSanctuaryView: React.FC<LearningSanctuaryViewProps> = ({ co
     chatBottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, isLoading]);
 
-  const handleSaveKey = (e: React.FormEvent) => {
+  const handleSaveKey = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (localKeyInput.trim()) {
-      const isSpell = localKeyInput.includes('_') || localKeyInput.toUpperCase() === localKeyInput;
+    const rawVal = localKeyInput.trim();
+    if (!rawVal) return;
+
+    setKeyFeedbackMsg(null);
+    setKeyErrorMsg(null);
+
+    const isSpell = rawVal.includes('_') || (rawVal.length < 32 && rawVal.toUpperCase() === rawVal && !rawVal.startsWith('AIzaSy'));
+
+    if (isSpell) {
       MentisRepository.saveAiCredentials({
         ...aiCredentials,
-        apiKey: !isSpell ? localKeyInput.trim() : aiCredentials.apiKey,
-        magicSpell: isSpell ? localKeyInput.trim().toUpperCase() : aiCredentials.magicSpell,
-        unlockMode: isSpell ? 'magic_spell' : 'api_key',
+        apiKey: undefined,
+        magicSpell: rawVal.toUpperCase(),
+        unlockMode: 'magic_spell',
         isAwakened: true,
         lastVerifiedAt: new Date().toISOString(),
       });
+      setKeyFeedbackMsg(`✨ Incantation accepted: ${rawVal.toUpperCase()} has awakened your Socratic guides.`);
+      setLocalKeyInput('');
+      setTimeout(() => setKeyFeedbackMsg(null), 3500);
+      return;
     }
-    setIsKeyDrawerOpen(false);
+
+    // Encrypt API key server-side using AES-256-GCM vault
+    setIsKeySaving(true);
+    try {
+      const res = await fetch('/api/ai/key', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          apiKey: rawVal,
+          provider: aiCredentials.provider || 'gemini',
+          model: aiCredentials.modelPreference || 'gemini-3.8-flash',
+        }),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        MentisRepository.saveAiCredentials({
+          ...aiCredentials,
+          apiKey: undefined, // Strictly never store raw key in client
+          encryptedKey: data.encryptedKey,
+          maskedKey: data.maskedKey,
+          unlockMode: 'api_key',
+          isAwakened: true,
+          lastVerifiedAt: new Date().toISOString(),
+        });
+        setKeyFeedbackMsg(`✨ Key encrypted and sealed in the vault (${data.maskedKey}). Socratic guides are awake.`);
+        setLocalKeyInput('');
+        setTimeout(() => setKeyFeedbackMsg(null), 3500);
+      } else {
+        setKeyErrorMsg(data.error || 'Failed to seal key in vault.');
+      }
+    } catch {
+      setKeyErrorMsg('Vault connection error.');
+    } finally {
+      setIsKeySaving(false);
+    }
+  };
+
+  const handleRevokeKey = async () => {
+    setIsKeySaving(true);
+    setKeyFeedbackMsg(null);
+    setKeyErrorMsg(null);
+    try {
+      await fetch('/api/ai/key', { method: 'DELETE' });
+    } catch {
+      // Best-effort remote revocation
+    } finally {
+      MentisRepository.saveAiCredentials({
+        ...aiCredentials,
+        apiKey: undefined,
+        encryptedKey: undefined,
+        maskedKey: undefined,
+        magicSpell: '',
+        unlockMode: 'none',
+        isAwakened: false,
+      });
+      setIsKeySaving(false);
+      setKeyFeedbackMsg('Credentials revoked and vault purged. AI tutors returned to dormant stasis.');
+      setLocalKeyInput('');
+      setTimeout(() => setKeyFeedbackMsg(null), 3500);
+    }
   };
 
   const handleSendMessage = async (e: React.FormEvent) => {
@@ -147,7 +220,7 @@ export const LearningSanctuaryView: React.FC<LearningSanctuaryViewProps> = ({ co
           persona: selectedPersona,
           mode: selectedMode,
           topic: activeCourse ? activeCourse.name : userText,
-          userApiKey: aiCredentials.apiKey || undefined,
+          encryptedKey: aiCredentials.encryptedKey || undefined,
           magicSpell: aiCredentials.magicSpell || undefined,
           model: aiCredentials.modelPreference || 'gemini-3.8-flash',
         }),
@@ -169,7 +242,7 @@ export const LearningSanctuaryView: React.FC<LearningSanctuaryViewProps> = ({ co
           {
             id: `msg_err_${Date.now()}`,
             role: 'assistant',
-            content: `The sanctuary was momentarily perturbed: ${errData.error || 'Check server connection or API key.'}`,
+            content: `The sanctuary was momentarily perturbed: ${errData.message || errData.error || 'Check server connection or API key.'}`,
             timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
           },
         ]);
@@ -239,8 +312,45 @@ export const LearningSanctuaryView: React.FC<LearningSanctuaryViewProps> = ({ co
           </div>
 
           <p className="text-xs text-[#202820]/80 font-sans">
-            Enter your Google AI Studio key (<code className="font-mono text-[#173B2D]">AIzaSy...</code>) or inscribe an Academy Spell (<code className="font-mono text-[#173B2D]">MENTIS_ACADEMIA_2026</code>) to awaken interactive Socratic dialogues. For full provider customization, visit the Scholar Profile.
+            Enter your Google AI Studio key (<code className="font-mono text-[#173B2D]">AIzaSy...</code>) or inscribe an Academy Spell (<code className="font-mono text-[#173B2D]">MENTIS_ACADEMIA_2026</code>) to awaken interactive Socratic dialogues. Keys are encrypted server-side with AES-256-GCM and never stored unencrypted.
           </p>
+
+          {/* Current Vault Status */}
+          {aiCredentials.isAwakened && (
+            <div className="flex flex-wrap items-center justify-between gap-2 p-2.5 rounded-xl bg-[#FAF7EE] border border-[#E3DAC1]">
+              <div className="flex items-center gap-2">
+                <Lock className="w-3.5 h-3.5 text-[#173B2D]" />
+                <span className="text-xs font-mono text-[#173B2D] font-semibold">
+                  {aiCredentials.maskedKey
+                    ? `Vault Key: ${aiCredentials.maskedKey}`
+                    : `Spell: ${aiCredentials.magicSpell}`}
+                </span>
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-mono bg-[#173B2D]/10 text-[#173B2D] font-medium">
+                  {aiCredentials.maskedKey ? 'AES-256-GCM Sealed' : 'Academic Arcana'}
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={handleRevokeKey}
+                disabled={isKeySaving}
+                className="text-[11px] font-serif-scholarly text-red-800 hover:text-red-900 underline cursor-pointer"
+              >
+                Revoke & Purge Vault
+              </button>
+            </div>
+          )}
+
+          {keyFeedbackMsg && (
+            <div className="p-2.5 rounded-xl bg-[#173B2D]/10 border border-[#173B2D]/30 text-[#173B2D] text-xs font-serif-scholarly">
+              {keyFeedbackMsg}
+            </div>
+          )}
+
+          {keyErrorMsg && (
+            <div className="p-2.5 rounded-xl bg-red-50 border border-red-200 text-red-800 text-xs font-serif-scholarly">
+              {keyErrorMsg}
+            </div>
+          )}
 
           <div className="flex flex-col sm:flex-row gap-2">
             <input
@@ -249,10 +359,10 @@ export const LearningSanctuaryView: React.FC<LearningSanctuaryViewProps> = ({ co
               value={localKeyInput}
               onChange={(e) => setLocalKeyInput(e.target.value)}
               placeholder={
-                aiCredentials.apiKey
-                  ? 'Key is active (type new key or spell to replace)'
+                aiCredentials.maskedKey
+                  ? `Active key (${aiCredentials.maskedKey}) — enter new key to replace`
                   : aiCredentials.magicSpell
-                  ? `Active spell: ${aiCredentials.magicSpell}`
+                  ? `Active spell (${aiCredentials.magicSpell}) — enter new key/spell to replace`
                   : 'Paste Gemini Key (AIzaSy...) or Spell (MENTIS_ACADEMIA_2026)...'
               }
               className="flex-1 px-3 py-2 text-xs font-mono bg-[#FAF7EE] border border-[#E3DAC1] rounded-xl text-[#202820]"
@@ -260,9 +370,10 @@ export const LearningSanctuaryView: React.FC<LearningSanctuaryViewProps> = ({ co
             <button
               id="sanctuary-save-quick-key-btn"
               type="submit"
-              className="px-4 py-2 rounded-xl bg-[#173B2D] text-[#F3EEDB] text-xs font-serif-scholarly font-medium shrink-0 hover:bg-[#122E23] transition-colors"
+              disabled={isKeySaving}
+              className="px-4 py-2 rounded-xl bg-[#173B2D] text-[#F3EEDB] text-xs font-serif-scholarly font-medium shrink-0 hover:bg-[#122E23] transition-colors cursor-pointer disabled:opacity-50"
             >
-              Awaken
+              {isKeySaving ? 'Sealing...' : 'Awaken & Seal'}
             </button>
           </div>
         </form>

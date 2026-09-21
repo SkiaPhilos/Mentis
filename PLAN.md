@@ -382,6 +382,38 @@
 - **Animation Requirements:** 3D perspective fold transition (`transform: perspective(1000px) rotateY(-15deg)`), soft page turn.
 - **Testing/Verification:** Test reading navigation, bookmark persistence, and progress percentage updates.
 
+### 8.3 Pomodoro Reading Vigil & Focus Tracker
+- **Objective:** Embed an interactive Pomodoro-style reading vigil timer directly within `LibraryView` and the active `BookReader`. Allows scholars to track deep-focus reading sessions attached to specific books or manuscripts, automatically logging cumulative reading minutes, updating reading streaks, and prompting reflection notes upon vigil completion.
+- **Dependencies:** React hooks (`useEffect`, `useRef`), `motion/react`, audio feedback utilities.
+- **Architecture:** `components/library/ReadingPomodoroModal.tsx`, `components/library/ReadingVigilWidget.tsx`, integrated with `MentisRepository` and `learning_sessions` / `books` entities.
+- **UI:** Circular progress dial styled with an antique brass astrolabe motif; countdown display with classical numerals; preset vigil modes:
+  - *Classic Vigil*: 25m Focus / 5m Scholarly Respite
+  - *Extended Dissertation*: 50m Deep Study / 10m Contemplation
+  - *Custom Vigil*: 10m to 120m flexible duration
+- **Data Model:** `ReadingSessionLog` (id, bookId, bookTitle, startTime, durationMinutes, pagesRead, reflections, completedAt).
+- **Interactions:** Start, pause, resume, reset timer; quick page count incrementer (`Pages read during this vigil: +10`); optional reflection modal upon session completion saving directly into the scholar's notebook.
+- **States:** Idle, Active Countdown, Paused, Respite/Break Phase, Session Completed.
+- **Security:** Scoped strictly to authenticated user profile; resilient to tab switching and page reloads via timestamp delta tracking.
+- **Responsive Behavior:** Compact floating widget in `BookReader` header or full modal dial on the bookshelf canvas.
+- **Animation Requirements:** Smooth SVG stroke dash-offset sweep, gentle pulsing golden aura during active focus.
+- **Testing/Verification:** Verify timer precision across background tabs; verify focus minutes persist to book reading statistics.
+
+### 8.4 Bibliophile Physical Record & Catalogue Export (PDF / DOCX)
+- **Objective:** Enable scholars to export their complete library catalogue, reading logs, and course bibliographies as beautifully formatted physical documents (print-ready PDF and structured DOCX files) for archival record-keeping, institutional syllabi submissions, and tangible study portfolios.
+- **Dependencies:** Standard print CSS media queries, HTML-to-PDF / canvas print generator, structured document serializer (`docx` / HTML-based Word export protocol).
+- **Architecture:** `lib/export/catalogueExporter.ts`, `components/library/LibraryExportModal.tsx`.
+- **UI:** "Export Catalogue & Physical Records" action in `LibraryView` header with options:
+  - *Complete Academy Catalogue* (All books, authors, courses, ISBNs, shelf locations)
+  - *Active Reading Portfolio* (Current books, percentage progress, cumulative study hours, personal marginalia notes)
+  - *Course Bibliography* (Filtered by specific course code, formatted in APA/MLA/Chicago scholarly citation styles)
+  - *Output Formats*: Print-Ready Parchment PDF or Editable Word Document (DOCX).
+- **Document Layout & Styling:** Formatted with Mentis academic crest, calligraphic heading typography, tabular bibliography layout, reading progress gauges, and formal archival date stamps.
+- **Interactions:** One-click preview modal, format selector (PDF vs DOCX), download trigger with auto-generated filename (e.g., `Mentis_Library_Catalogue_2026-09-21.pdf`).
+- **States:** Configuration, Generating/Rendering, Download Initiated, Complete.
+- **Security:** Purely client-side or securely generated server-side streaming; zero document leakage to external print services.
+- **Responsive Behavior:** Export dialog adapts seamlessly across desktop and mobile.
+- **Testing/Verification:** Verify generated PDF renders page breaks cleanly; verify DOCX opens in Microsoft Word and Google Docs without formatting degradation.
+
 ---
 
 ## 9. Provider-Agnostic AI & The Magical Key
@@ -521,6 +553,46 @@
 
 ---
 
+## 14. Scholarly Ambiance, Acoustic Soundscapes & Voice Dictation
+
+### 14.1 Background Scholarly Music & Ambient Soundscapes
+- **Objective:** Provide continuous, gentle background ambient audio and delicate acoustic melodies curated for focused academic contemplation.
+- **Dependencies:** Web Audio API, HTML5 Audio, audio loop assets.
+- **Architecture:** `lib/audio/ambientPlayer.ts`, `components/audio/AmbianceController.tsx` integrated into the top bar of `ScholarlyShell.tsx`.
+- **Soundscape Tracks:**
+  - *Rain upon the Cloister Glass* (soft binaural rain & distant thunder)
+  - *The Monastic Scriptorium* (gentle lute & classical harpsichord cadence)
+  - *Midnight Hearth & Flickering Candle* (soothing low crackle & wood warmth)
+  - *Aged Library Grand Clock* (hypnotic low mechanical tick & reverberant hall)
+- **UI & Controls:** Discreet speaker/lyre icon in navigation header; expandable drawer with play/pause, master volume slider (0-100%), track selector, and sleep timer (15m, 30m, 60m).
+- **Behavior:** Remembers play state and volume in local storage; smoothly fades volume down on tab hidden or browser blur.
+- **Testing/Verification:** Seamless audio looping, no stutter on route transitions, graceful fallback on iOS autoplay restrictions.
+
+### 14.2 Tactile Scholarly Sound Effects (Haptic Acoustics)
+- **Objective:** Reinforce physical, tactile craftsmanship with delicate, non-intrusive sound effects for core scholarly actions.
+- **Dependencies:** Synthesized Web Audio API oscillators / micro audio buffers.
+- **Architecture:** `lib/audio/soundEffects.ts` with singleton sound dispatcher.
+- **Interaction SFX:**
+  - *Parchment Turn*: Soft paper friction when turning pages in `BookReader` or switching study tabs.
+  - *Quill Inscription*: Subtle scratching audio when committing a note block in `NotesView`.
+  - *Wax Seal Stamp*: Resonant muted thud when approving an applicant or saving credentials.
+  - *Brass Astrolabe Chime*: Pure harmonic bell when Pomodoro reading vigils or schedule blocks elapse.
+  - *Book Closure*: Gentle leather-bound acoustic snap when closing a manuscript.
+- **UI & Settings:** Accessible toggle in Scholar Profile ("Acoustic Feedback: Enabled / Muted").
+- **Testing/Verification:** Low latency (<30ms), zero audio clipping, respects mute toggle and user volume preference.
+
+### 14.3 Scholarly Audio Dictation & Voice Transcription Engine
+- **Objective:** Enable hands-free oral inquiry and spoken manuscript dictation across the Notes workspace and the Learning Sanctuary.
+- **Dependencies:** Web Speech API (`webkitSpeechRecognition` / `SpeechRecognition`), `@google/genai` audio transcription route `/api/ai/transcribe`.
+- **Architecture:** `hooks/useVoiceTranscription.ts`, `components/ai/VoiceDictationButton.tsx`.
+- **UI:** Elegant brass quill-microphone button in Note Block editor and Sanctuary query bar; visual golden waveform pulsation indicator during active recording.
+- **Dual Mode Transcription:**
+  - *Browser Speech Recognition*: Zero-latency streaming text dictation for real-time note-taking.
+  - *Scholarly Gemini Voice Engine*: High-fidelity audio transcription handling complex terminology, Latin/Greek academic roots, and mathematical symbols via server-side audio processing.
+- **Testing/Verification:** Verify microphone permission request; verify captured audio decodes into structured note blocks.
+
+---
+
 ## Foundation-Correction Staged Execution Roadmap (Phase 1+)
 
 This roadmap specifies the iterative execution protocol. Each step is independently reviewable and verifiable. No step will be executed without prior explicit user approval.
@@ -533,12 +605,16 @@ Step 2: Supabase Integration, Database Schema & RLS Policies [COMPLETED & VERIFI
 Step 3: Real Authentication & Registration Flow with Pending Approval Gate [COMPLETED & VERIFIED]
   ↓
 Step 4: Google SMTP (App Password) Email Notifications & Real Admin Approval [COMPLETED & VERIFIED]
-  ↓ (Approval required for Step 5)
-Step 5: Secure AI "Magical Key" Server-Side Storage & Authenticated AI Routes
   ↓
-Step 6: Interactive 7-Day Timetable Grid Engine
+Step 5: Secure AI "Magical Key" Server-Side Storage & Authenticated AI Routes [COMPLETED & VERIFIED]
   ↓
-Step 7: PWA Verification, Vercel Readiness, Documentation & Final Audit
+Step 6: Interactive 7-Day Timetable Grid Engine [ACTIVE / IN PROGRESS]
+  ↓
+Step 7: Library Pomodoro Focus Vigil & Catalogue Export (PDF/DOCX)
+  ↓
+Step 8: Scholarly Ambiance (Background Music, SFX & Voice Transcription)
+  ↓
+Step 9: PWA Verification, Vercel Readiness, Documentation & Final Audit
 ```
 
 ### Step 1: Hydration Determinism Fix & Environment Baseline — [COMPLETED & VERIFIED]
@@ -578,29 +654,46 @@ Step 7: PWA Verification, Vercel Readiness, Documentation & Final Audit
   - Updated `components/admin/AdminView.tsx` with Google SMTP courier diagnostics, real status mutation syncing, and a direct "Test Owner Courier" verification action.
 - **Verification Criteria:** Registration triggers the notification workflow; unconfigured credentials display clear Google App Password setup instructions; admin approve/reject operations persist to the database. ESLint and Next.js build clean.
 
-### Step 5: Secure AI "Magical Key" Server-Side Storage & Authenticated AI Routes
+### Step 5: Secure AI "Magical Key" Server-Side Storage & Authenticated AI Routes — [COMPLETED & VERIFIED]
 - **Goal:** Eliminate raw `userApiKey` in client requests and `localStorage`. Build server-side AES-256-GCM encryption for stored user API keys and authenticate `/app/api/ai/chat` and `/app/api/ai/summarize`.
-- **Files to Change:**
-  - `lib/crypto.ts` (Server-side AES-256-GCM encryption/decryption using `AI_CREDENTIAL_ENCRYPTION_KEY`)
-  - `app/api/ai/key/route.ts` (Secure endpoints to store encrypted key, delete key, and retrieve masked fingerprint `••••••••4F92`)
-  - `components/learning/LearningSanctuaryView.tsx` (Update Magical Key card with provider status, masked key display, and disconnect)
-  - `app/api/ai/chat/route.ts` & `app/api/ai/summarize/route.ts` (Require authenticated session, load user's decrypted key server-side, remove raw client key parameter, remove fake fallback responses)
-- **Deliberately Left Untouched:** Timetable grid (Step 6), Documentation (Step 7).
-- **Verification Criteria:** Raw keys never stored in browser `localStorage`; unconfigured AI returns explicit "AI not configured" state; authenticated server decryption succeeds.
+- **Completed Actions:**
+  - Implemented `lib/crypto.ts` with AES-256-GCM authenticated encryption, 12-byte random IVs, 16-byte authentication tags (`iv:authTag:ciphertext`), and key masking (`maskApiKey`).
+  - Created `app/api/ai/key/route.ts` supporting `GET` (key status check), `POST` (AES-256-GCM encryption and optional Supabase `user_ai_credentials` storage), and `DELETE` (revocation).
+  - Built `lib/ai/vault.ts` with `resolveDecryptedApiKey`, strictly prohibiting client-passed unencrypted keys and securely resolving keys server-side.
+  - Hardened `/api/ai/chat` and `/api/ai/summarize` with `@google/genai` TypeScript SDK, dynamic models (`gemini-3.8-flash`), and strict 403 unconfigured rejection, completely eliminating fake fallback AI responses.
+  - Refactored `LearningSanctuaryView.tsx`, `ProfileView.tsx`, and `NotesView.tsx` to remove raw `apiKey` storage/transmissions, displaying masked credentials with encrypted vault badges.
+- **Verification:** AES-256-GCM verified via Node runtime tests; HTTP endpoints verified; ESLint passed with 0 errors; `next build` succeeded with 0 warnings.
 
-### Step 6: Interactive 7-Day Timetable Grid Engine
+### Step 6: Interactive 7-Day Timetable Grid Engine — [ACTIVE / IN PROGRESS]
 - **Goal:** Rebuild `ScheduleView.tsx` from the day-by-day tabbed list into the full visual 7-day schedule grid (Monday–Sunday as rows, horizontal 30-minute intervals from 8:00 AM to 8:00 PM).
 - **Files to Change:**
-  - `components/schedule/ScheduleView.tsx` (Full 7-day grid layout with horizontal time axis, block duration rendering, click empty space to add, drag-and-drop snapping, duration resizing, and mobile horizontal scrolling)
-  - `components/schedule/ScheduleBlockModal.tsx` (Refined creation/edit modal)
-- **Deliberately Left Untouched:** Documentation & final audit (Step 7).
-- **Verification Criteria:** Visually renders 7 rows simultaneously; blocks span correct time intervals; 30-minute snapping behaves smoothly.
+  - `components/schedule/ScheduleView.tsx` (Full 7-day grid layout with horizontal time axis, block duration rendering, click empty space to add, drag-and-drop snapping, duration resizing, course color coding, and mobile horizontal scrolling)
+  - `components/schedule/ScheduleBlockModal.tsx` (Refined creation/edit modal with start/end time pickers, recurring toggle, and course association)
+- **Deliberately Left Untouched:** Library Pomodoro & Export (Step 7), Audio Ambiance & Dictation (Step 8), Final Documentation (Step 9).
+- **Verification Criteria:** Visually renders all 7 day rows simultaneously; blocks span correct time intervals with accurate width calculations; click-to-create works cleanly; 30-minute snapping behaves smoothly; build compiles cleanly with zero warnings.
 
-### Step 7: PWA Verification, Vercel Readiness, Documentation & Final Audit
+### Step 7: Library Pomodoro Focus Vigil & Physical Catalogue Export (PDF/DOCX)
+- **Goal:** Integrate a Pomodoro-style reading timer in `LibraryView` to track focus sessions while reading specific books, and add comprehensive export features allowing scholars to export their book lists and reading portfolios as print-ready PDF and structured DOCX files.
+- **Files to Change:**
+  - `components/library/ReadingPomodoroModal.tsx` (Astrolabe-styled circular vigil timer, 25m/50m presets, page tracking incrementer, reflection note generator)
+  - `components/library/LibraryView.tsx` (Embed Pomodoro widget trigger, active vigil indicator, and Catalogue Export trigger)
+  - `components/library/LibraryExportModal.tsx` & `lib/export/catalogueExporter.ts` (Print-ready PDF layout with Mentis academic crest, and structured DOCX document generation for physical record-keeping)
+- **Verification Criteria:** Pomodoro countdown operates accurately across tabs; logs focus minutes to book entities; PDF and DOCX exports generate valid, styled documents with proper metadata and page formatting.
+
+### Step 8: Scholarly Ambiance (Background Music, SFX & Audio Transcription)
+- **Goal:** Implement background scholarly ambient music, tactile interaction sound effects, and speech-to-text audio transcription features.
+- **Files to Change:**
+  - `lib/audio/ambientPlayer.ts` & `components/audio/AmbianceController.tsx` (Background ambient soundscapes: rain on cloister glass, scriptorium lute, fireplace crackle, library clock with master volume and sleep timer)
+  - `lib/audio/soundEffects.ts` (Tactile sound effects using Web Audio API: parchment rustle, quill scratch, wax seal stamp, brass bell chime)
+  - `hooks/useVoiceTranscription.ts` & `components/ai/VoiceDictationButton.tsx` (Speech dictation for Note editor and Learning Sanctuary using Web Speech API with `@google/genai` audio fallback)
+  - `components/layout/ScholarlyShell.tsx` (Integrate audio controller into top header)
+- **Verification Criteria:** Background music loops without clipping; sound effects trigger promptly with mute control in profile; voice dictation transcribes speech into active input field.
+
+### Step 9: PWA Verification, Vercel Readiness, Documentation & Final Audit
 - **Goal:** Verify PWA assets and caching behavior, rewrite `README.md` with complete Vercel & Supabase production setup documentation, and conduct the final progress audit.
 - **Files to Change:**
   - `public/sw.js` & `hooks/usePWAInstall.ts` (Exclude authenticated routes from indiscriminate caching, verify PWA manifest)
-  - `README.md` (Comprehensive documentation: local setup, environment variables, Supabase migrations, Resend setup, Vercel deployment)
+  - `README.md` (Comprehensive documentation: local setup, environment variables, Supabase migrations, Google SMTP setup, Vercel deployment)
   - `PROGRESS.md` & `PLAN.md` (Final audit and reflection of true completion percentages)
 - **Verification Criteria:** Clean production build (`npm run build`), clean lint (`npm run lint`), complete documentation.
 

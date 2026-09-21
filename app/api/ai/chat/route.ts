@@ -1,6 +1,6 @@
 import { GoogleGenAI } from '@google/genai';
 import { NextRequest, NextResponse } from 'next/server';
-import { resolveDecryptedApiKey } from '@/app/api/ai/key/route';
+import { resolveDecryptedApiKey } from '@/lib/ai/vault';
 
 const PERSONA_PROMPTS: Record<string, string> = {
   raziel:

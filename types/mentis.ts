@@ -65,6 +65,32 @@ export interface Book {
   currentPage: number;
   progress: number; // 0 to 100
   lastReadAt?: string;
+  notes?: string;
+}
+
+export type PomodoroVigilMode = 'classic' | 'extended' | 'custom' | 'repose';
+
+export interface ReadingFocusSession {
+  id: string;
+  userId: string;
+  bookId?: string;
+  bookTitle?: string;
+  mode: PomodoroVigilMode;
+  targetDurationMinutes: number;
+  completedDurationSeconds: number;
+  startPage?: number;
+  endPage?: number;
+  pagesReadDelta: number;
+  reflectionNotes?: string;
+  completedAt: string;
+}
+
+export interface LibraryExportConfig {
+  format: 'pdf' | 'docx';
+  scope: 'all' | 'in_progress' | 'completed' | 'by_category';
+  selectedCategory?: string;
+  includeNotes: boolean;
+  includeStats: boolean;
 }
 
 export type NoteBlockType = 'paragraph' | 'heading' | 'bullet' | 'quote' | 'code' | 'ocr';

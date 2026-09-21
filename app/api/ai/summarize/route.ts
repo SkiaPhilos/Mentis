@@ -1,6 +1,6 @@
 import { GoogleGenAI } from '@google/genai';
 import { NextRequest, NextResponse } from 'next/server';
-import { resolveDecryptedApiKey } from '@/app/api/ai/key/route';
+import { resolveDecryptedApiKey } from '@/lib/ai/vault';
 
 export async function POST(req: NextRequest) {
   try {
