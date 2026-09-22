@@ -61,6 +61,10 @@ export interface Book {
   category: string;
   coverUrl?: string;
   fileUrl?: string;
+  fileData?: string;
+  fileType?: 'pdf' | 'docx' | 'text';
+  fileName?: string;
+  manuscriptHtml?: string;
   totalPages: number;
   currentPage: number;
   progress: number; // 0 to 100

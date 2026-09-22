@@ -32,7 +32,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   onClose,
   initialMode = 'login',
 }) => {
-  const { login, signup, switchDemoAccount, isLoading } = useAuth();
+  const { login, signup, isLoading } = useAuth();
 
   const [mode, setMode] = useState<'login' | 'signup'>(initialMode);
   const [showPassword, setShowPassword] = useState<boolean>(false);
@@ -147,57 +147,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 ? 'Sign in to access your personal study desk and library'
                 : 'Petition for admittance into the private scholarly sanctuary'}
             </p>
-          </div>
-        </div>
-
-        {/* Quick Demo Scholar Switcher */}
-        <div className="mt-4 p-2.5 rounded-xl bg-[#F3EEDB]/80 border border-[#E3DAC1] font-sans text-xs space-y-2">
-          <div className="flex items-center justify-between">
-            <span className="text-[11px] font-semibold text-[#173B2D] uppercase tracking-wider font-mono">
-              ◈ Quick Scholar Switch (Evaluation)
-            </span>
-            <span className="text-[10px] text-[#8E7541] font-mono">Instant Persona</span>
-          </div>
-
-          <div className="grid grid-cols-3 gap-2 text-[11px]">
-            <button
-              id="demo-admin-login-btn"
-              type="button"
-              onClick={() => {
-                switchDemoAccount('admin');
-                if (onClose) onClose();
-              }}
-              className="p-1.5 rounded-lg bg-white/80 border border-[#E3DAC1] hover:border-[#173B2D] hover:bg-[#173B2D]/10 text-left transition-all cursor-pointer"
-            >
-              <div className="font-semibold text-[#173B2D] truncate">Abdullah</div>
-              <div className="text-[10px] text-[#173B2D] font-mono">Admin (Approved)</div>
-            </button>
-
-            <button
-              id="demo-pending-login-btn"
-              type="button"
-              onClick={() => {
-                switchDemoAccount('pending');
-                if (onClose) onClose();
-              }}
-              className="p-1.5 rounded-lg bg-white/80 border border-[#E3DAC1] hover:border-[#8E7541] hover:bg-[#8E7541]/10 text-left transition-all cursor-pointer"
-            >
-              <div className="font-semibold text-[#8E7541] truncate">Hamza</div>
-              <div className="text-[10px] text-[#8E7541] font-mono">Applicant (Pending)</div>
-            </button>
-
-            <button
-              id="demo-rejected-login-btn"
-              type="button"
-              onClick={() => {
-                switchDemoAccount('rejected');
-                if (onClose) onClose();
-              }}
-              className="p-1.5 rounded-lg bg-white/80 border border-[#E3DAC1] hover:border-[#B33928] hover:bg-[#B33928]/10 text-left transition-all cursor-pointer"
-            >
-              <div className="font-semibold text-[#B33928] truncate">Ayesha</div>
-              <div className="text-[10px] text-[#B33928] font-mono">Deferred (Rejected)</div>
-            </button>
           </div>
         </div>
 

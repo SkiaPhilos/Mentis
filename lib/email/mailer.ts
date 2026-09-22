@@ -63,7 +63,8 @@ export async function sendScholarRegistrationNotification(
   const transporter = createSmtpTransporter();
   const ownerEmail = process.env.OWNER_EMAIL || 'abdullahsaeed.sam@gmail.com';
   const fromEmail = process.env.SMTP_FROM || `Mentis Sanctuary <${process.env.SMTP_USER || 'no-reply@mentis.academic'}>`;
-  const appUrl = process.env.APP_URL || 'https://mentis.academic';
+  const rawAppUrl = process.env.APP_URL?.trim();
+  const appUrl = (rawAppUrl && !rawAppUrl.includes('.run.app')) ? rawAppUrl : 'https://mentisportal.vercel.app';
 
   if (!transporter) {
     return {
@@ -208,7 +209,8 @@ export async function sendScholarStatusDecisionEmail(
 ): Promise<MailerResult> {
   const transporter = createSmtpTransporter();
   const fromEmail = process.env.SMTP_FROM || `Mentis Sanctuary <${process.env.SMTP_USER || 'no-reply@mentis.academic'}>`;
-  const appUrl = process.env.APP_URL || 'https://mentis.academic';
+  const rawAppUrl = process.env.APP_URL?.trim();
+  const appUrl = (rawAppUrl && !rawAppUrl.includes('.run.app')) ? rawAppUrl : 'https://mentisportal.vercel.app';
 
   if (!transporter) {
     return {

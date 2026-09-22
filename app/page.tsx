@@ -11,7 +11,7 @@ import { LearningSanctuaryView } from '@/components/learning/LearningSanctuaryVi
 import { ProfileView } from '@/components/profile/ProfileView';
 import { AdminView } from '@/components/admin/AdminView';
 import { AuthProvider, useAuth } from '@/lib/auth/AuthContext';
-import { AuthModal } from '@/components/auth/AuthModal';
+import { AuthGateView } from '@/components/auth/AuthGateView';
 import { PendingApprovalView } from '@/components/auth/PendingApprovalView';
 import { MentisRepository } from '@/lib/storage/repository';
 import {
@@ -25,17 +25,12 @@ import {
 } from '@/types/mentis';
 
 function MentisSanctuary() {
-  const { logout, updateApprovalStatus } = useAuth();
+  const { user, isAuthenticated, logout, updateApprovalStatus } = useAuth();
   const [activeTab, setActiveTab] = useState<ActiveTab>('desk');
-  const [authModalOpen, setAuthModalOpen] = useState<boolean>(false);
 
   // Relational Entities synchronized deterministically via useSyncExternalStore
   // SSR snapshot matches 100% with initial client hydration to prevent hydration mismatches
-  const profile = useSyncExternalStore(
-    MentisRepository.subscribe,
-    MentisRepository.getActiveAuthUserSnapshot,
-    MentisRepository.getDefaultProfile
-  );
+  const profile = user || MentisRepository.getDefaultProfile();
   const courses = useSyncExternalStore(
     MentisRepository.subscribe,
     MentisRepository.getCoursesSnapshot,
@@ -136,42 +131,37 @@ function MentisSanctuary() {
     setActiveTab('notes');
   };
 
-  // Approval Gate Routing: If candidate status is pending or rejected, present the review sanctum
-  const isApproved = profile.approvalStatus === 'approved';
+  // 1. Outside Gate: Unauthenticated scholars must petition or sign in
+  if (!isAuthenticated || !user) {
+    return <AuthGateView />;
+  }
+
+  // 2. Approval Gate Routing: If candidate status is pending or rejected, present the review sanctum
+  const isApproved = user.approvalStatus === 'approved';
 
   if (!isApproved) {
     return (
-      <>
-        <PendingApprovalView
-          user={profile}
-          onRefreshStatus={() => {}}
-          onUpdateApprovalStatus={updateApprovalStatus}
-          onLogout={async () => {
-            await logout();
-            setAuthModalOpen(true);
-          }}
-          onEnterSanctuary={() => updateApprovalStatus('approved')}
-        />
-        <AuthModal
-          isOpen={authModalOpen}
-          onClose={() => setAuthModalOpen(false)}
-        />
-      </>
+      <PendingApprovalView
+        user={user}
+        onRefreshStatus={() => {}}
+        onUpdateApprovalStatus={updateApprovalStatus}
+        onLogout={logout}
+        onEnterSanctuary={() => updateApprovalStatus('approved')}
+      />
     );
   }
 
   return (
-    <>
-      <ScholarlyShell
-        activeTab={activeTab}
-        onSelectTab={(tab) => {
-          setActiveTab(tab);
-          if (tab !== 'library') setActiveBookToRead(null);
-          if (tab !== 'notes') setActiveNoteToEdit(null);
-        }}
-        profile={profile}
-        onOpenAuth={() => setAuthModalOpen(true)}
-      >
+    <ScholarlyShell
+      activeTab={activeTab}
+      onSelectTab={(tab) => {
+        setActiveTab(tab);
+        if (tab !== 'library') setActiveBookToRead(null);
+        if (tab !== 'notes') setActiveNoteToEdit(null);
+      }}
+      profile={user}
+      onLogout={logout}
+    >
         <AnimatePresence mode="wait">
           <motion.div
             key={activeTab}
@@ -243,19 +233,13 @@ function MentisSanctuary() {
               />
             )}
 
-            {activeTab === 'admin' && (
-              <AdminView currentUser={profile} />
+            {activeTab === 'admin' && user.role === 'admin' && (
+              <AdminView currentUser={user} />
             )}
           </motion.div>
         </AnimatePresence>
       </ScholarlyShell>
-
-      <AuthModal
-        isOpen={authModalOpen}
-        onClose={() => setAuthModalOpen(false)}
-      />
-    </>
-  );
+    );
 }
 
 export default function MentisApp() {

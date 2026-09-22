@@ -58,7 +58,7 @@ export const DEFAULT_PROFILE: UserProfile = {
   currentPeriod: 'Semester 4',
   targetGrade: '3.90 GPA',
   approvalStatus: 'approved',
-  role: 'admin',
+  role: 'user', // Default role is standard scholar; admin privileges are strictly authenticated
   createdAt: '2026-09-01T00:00:00.000Z',
 };
 
@@ -480,7 +480,7 @@ let cachedScholarsRaw: string | null = null;
 let cachedScholarsSnapshot: ManagedScholar[] = DEFAULT_SCHOLARS;
 
 let cachedActiveAuthRaw: string | null = null;
-let cachedActiveAuthSnapshot: UserProfile = DEFAULT_PROFILE;
+let cachedActiveAuthSnapshot: UserProfile | null = null;
 
 // Unified Repository API
 export const MentisRepository = {
@@ -894,12 +894,24 @@ export const MentisRepository = {
   // ---------------------------------------------------------------------------
   // Active Auth Session
   // ---------------------------------------------------------------------------
-  getActiveAuthUserSnapshot: (): UserProfile => {
-    return MentisRepository.getProfileSnapshot();
+  getDefaultActiveAuthUser: (): UserProfile | null => null,
+
+  getActiveAuthUserSnapshot: (): UserProfile | null => {
+    if (typeof window === 'undefined') return null;
+    try {
+      const raw = localStorage.getItem(STORAGE_KEYS.ACTIVE_AUTH);
+      if (!raw) return null;
+      if (raw === cachedActiveAuthRaw) return cachedActiveAuthSnapshot;
+      cachedActiveAuthRaw = raw;
+      cachedActiveAuthSnapshot = JSON.parse(raw) as UserProfile;
+      return cachedActiveAuthSnapshot;
+    } catch {
+      return null;
+    }
   },
 
-  getActiveAuthUser: (): UserProfile => {
-    return MentisRepository.getProfile();
+  getActiveAuthUser: (): UserProfile | null => {
+    return MentisRepository.getActiveAuthUserSnapshot();
   },
 
   setActiveAuthUser: (user: UserProfile): void => {
@@ -914,6 +926,8 @@ export const MentisRepository = {
     if (typeof window !== 'undefined') {
       localStorage.removeItem(STORAGE_KEYS.ACTIVE_AUTH);
     }
+    cachedActiveAuthRaw = null;
+    cachedActiveAuthSnapshot = null;
     emitChange();
   },
 };

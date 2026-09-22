@@ -6,6 +6,30 @@
 
 ---
 
+## Current Sprint: Critical Access Control, Timetable & Scholarly Reader Overhaul
+
+### Objective 1: Outside Authentication Gate & Strict Access Control [COMPLETED]
+- **Eliminate Profile Switching**: Completely removed demo persona switchers, quick switches, and unauthenticated bypasses to preserve strict RBAC.
+- **Outside Gate**: Visitors without an authenticated session see the atmospheric outside login/matriculation screen directly (`AuthGateView`); the sanctuary desk is strictly closed until verified.
+- **Strict Role Verification**: Default guest/unauthenticated state is `role: 'user'`. `role: 'admin'` is strictly reserved for approved administrative credentials. The Administration tab is visible solely to confirmed admins.
+- **Prominent Log Out**: Dedicated, one-click Log Out action in the sidebar and profile card that destroys the active session and returns the user to the outside gate.
+- **Courier Email Links**: Ensure all notification links point directly to production `https://mentisportal.vercel.app`.
+
+### Objective 2: Schedule Timetable Custom Span & Full 24-Hour Coverage [COMPLETED]
+- **End Hour Fix**: Resolved the `< endHour` loop cutoff so selecting ranges (e.g., 8 AM - 8 PM or 7 AM - 10 PM) renders the full final hour interval cleanly.
+- **Custom View Span Selector**: Scholars can choose custom time bounds from `x` to `y` in 12-hour AM/PM or 24-hour format with flexible interval controls.
+- **Full 24-Hour Mode**: 1-click 24-Hour view spanning 00:00 to 24:00 across all 48 half-hour slots with snapping, dragging, and resizing intact.
+
+### Objective 3: Dual-Page Scholarly Folio Reader (PDF & Manuscript) [COMPLETED]
+- **Eliminated Generic Chrome Iframe**: Replaced raw browser PDF iframe with an authentic dual-page open codex reader (`DualFolioReader`).
+- **Dual-Page Spread (Verso & Recto)**: Two pages rendered side-by-side in true portrait proportion (`1:1.414`), with center gutter book shadow, and collapsing to single-page on mobile.
+- **Vector & Asset Fidelity via PDF.js**: High-DPI HTML5 canvas rendering of all mathematical equations, diagrams, color illustrations, and fonts with no layout scrambling.
+- **Native DOCX Manuscript Support**: Client-side parsing via Mammoth for manuscripts and notes, rendering directly into styled parchment folios with estimated folio pagination.
+- **Folio Controls & Interactions**: Page flip animation with parchment rustle Web Audio, folio slider, full-screen reading vigil, and smooth zoom (75% to 150%).
+- **Document Inscription & Upload**: Scholars can upload any PDF or DOCX file directly through the reader or the Add Codex modal.
+
+---
+
 ## 1. Foundation & Visual Design System
 
 ### 1.1 Palette & Global CSS Design Tokens

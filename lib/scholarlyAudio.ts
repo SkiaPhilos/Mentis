@@ -122,3 +122,36 @@ export function playPageTurnSound(): void {
 
   noise.start(now);
 }
+
+/**
+ * Tactile Ink/Wax Seal Click
+ */
+export function playClickTactile(): void {
+  const ctx = getAudioContext();
+  if (!ctx) return;
+
+  const now = ctx.currentTime;
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+
+  osc.type = 'sine';
+  osc.frequency.setValueAtTime(800, now);
+  osc.frequency.exponentialRampToValueAtTime(300, now + 0.03);
+
+  gain.gain.setValueAtTime(0.08, now);
+  gain.gain.exponentialRampToValueAtTime(0.001, now + 0.03);
+
+  osc.connect(gain);
+  gain.connect(ctx.destination);
+
+  osc.start(now);
+  osc.stop(now + 0.03);
+}
+
+/**
+ * Gentle Parchment Rustle
+ */
+export function playParchmentRustle(): void {
+  playPageTurnSound();
+}
+

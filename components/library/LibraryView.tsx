@@ -1,11 +1,13 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { Book, Course, ReadingFocusSession } from '@/types/mentis';
 import { ReadingVigilTimer } from '@/components/library/ReadingVigilTimer';
 import { LibraryExportModal } from '@/components/library/LibraryExportModal';
+import { DualFolioReader } from '@/components/library/DualFolioReader';
 import { MentisRepository } from '@/lib/storage/repository';
-import { playPageTurnSound } from '@/lib/scholarlyAudio';
+import { playPageTurnSound, playClickTactile } from '@/lib/scholarlyAudio';
+import mammoth from 'mammoth';
 import {
   BookOpen,
   Plus,
@@ -22,6 +24,8 @@ import {
   Trash2,
   Edit3,
   Search,
+  UploadCloud,
+  FileText,
 } from 'lucide-react';
 
 interface LibraryViewProps {
@@ -54,6 +58,14 @@ export const LibraryView: React.FC<LibraryViewProps> = ({
   const [newCourseId, setNewCourseId] = useState<string>('');
   const [newPages, setNewPages] = useState(350);
   const [newNotes, setNewNotes] = useState('');
+  const [uploadedFile, setUploadedFile] = useState<{
+    name: string;
+    type: 'pdf' | 'docx';
+    data?: string;
+    html?: string;
+  } | null>(null);
+  const [isParsingDoc, setIsParsingDoc] = useState<boolean>(false);
+  const modalFileInputRef = useRef<HTMLInputElement | null>(null);
 
   // Reader margin note editing
   const [isAddingReaderNote, setIsAddingReaderNote] = useState(false);
@@ -70,6 +82,66 @@ export const LibraryView: React.FC<LibraryViewProps> = ({
     return matchesCat && matchesSearch;
   });
 
+  const handleModalDocUpload = async (file: File) => {
+    setIsParsingDoc(true);
+    try {
+      const fileName = file.name;
+      const lower = fileName.toLowerCase();
+
+      if (lower.endsWith('.pdf')) {
+        const reader = new FileReader();
+        reader.onload = async (e) => {
+          const dataUrl = e.target?.result as string;
+          const pdfjsLib = await import('pdfjs-dist');
+          if (!pdfjsLib.GlobalWorkerOptions.workerSrc) {
+            pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.mjs`;
+          }
+          const base64 = dataUrl.split(',')[1];
+          const binary = atob(base64);
+          const bytes = new Uint8Array(binary.length);
+          for (let i = 0; i < binary.length; i++) {
+            bytes[i] = binary.charCodeAt(i);
+          }
+          const doc = await pdfjsLib.getDocument({ data: bytes }).promise;
+
+          setUploadedFile({
+            name: fileName,
+            type: 'pdf',
+            data: dataUrl,
+          });
+          setNewPages(doc.numPages || 100);
+          if (!newTitle.trim()) {
+            setNewTitle(fileName.replace(/\.[^/.]+$/, '').replace(/[-_]/g, ' '));
+          }
+          setIsParsingDoc(false);
+          playClickTactile();
+        };
+        reader.readAsDataURL(file);
+      } else if (lower.endsWith('.docx')) {
+        const arrayBuffer = await file.arrayBuffer();
+        const result = await mammoth.convertToHtml({ arrayBuffer });
+        const html = result.value;
+        const words = html.replace(/<[^>]+>/g, ' ').split(/\s+/).filter(Boolean).length;
+        const estPages = Math.max(2, Math.ceil(words / 350));
+
+        setUploadedFile({
+          name: fileName,
+          type: 'docx',
+          html,
+        });
+        setNewPages(estPages);
+        if (!newTitle.trim()) {
+          setNewTitle(fileName.replace(/\.[^/.]+$/, '').replace(/[-_]/g, ' '));
+        }
+        setIsParsingDoc(false);
+        playClickTactile();
+      }
+    } catch (err) {
+      console.error('Failed to parse uploaded document:', err);
+      setIsParsingDoc(false);
+    }
+  };
+
   const handleCreateBook = (e: React.FormEvent) => {
     e.preventDefault();
     const created: Book = {
@@ -83,6 +155,10 @@ export const LibraryView: React.FC<LibraryViewProps> = ({
       currentPage: 1,
       progress: 0,
       notes: newNotes.trim() || undefined,
+      fileType: uploadedFile?.type,
+      fileData: uploadedFile?.data,
+      fileName: uploadedFile?.name,
+      manuscriptHtml: uploadedFile?.html,
       lastReadAt: new Date().toISOString(),
     };
     onAddBook(created);
@@ -94,6 +170,7 @@ export const LibraryView: React.FC<LibraryViewProps> = ({
     setNewAuthor('');
     setNewNotes('');
     setNewPages(350);
+    setUploadedFile(null);
   };
 
   const handlePageChange = (delta: number) => {
@@ -209,185 +286,17 @@ export const LibraryView: React.FC<LibraryViewProps> = ({
         />
       )}
 
-      {/* Active Reader Mode */}
+      {/* Active Reader Mode (Dual-Page Scholarly Folio Reader) */}
       {activeBook ? (
-        <div className="parchment-card rounded-2xl p-6 sm:p-8 space-y-6 shadow-md border border-[#B59A62]/40">
-          {/* Reader Header */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-[#E3DAC1]">
-            <button
-              id="return-to-bookshelf-btn"
-              onClick={() => setActiveBook(null)}
-              className="flex items-center gap-1.5 text-xs font-serif-scholarly text-[#173B2D] hover:text-[#8E7541] self-start"
-            >
-              <ArrowLeft className="w-4 h-4" />
-              <span>Return to Bookshelf</span>
-            </button>
-
-            <div className="text-center sm:px-4">
-              <span className="text-[10px] uppercase font-serif-scholarly text-[#8E7541] font-semibold tracking-wider">
-                {activeBook.category}{' '}
-                {activeBook.courseId && `• ${courseMap.get(activeBook.courseId) || 'Course'}`}
-              </span>
-              <h3 className="font-serif-scholarly text-lg font-bold text-[#173B2D]">
-                {activeBook.title}
-              </h3>
-              <span className="text-xs text-[#202820]/60 italic">by {activeBook.author}</span>
-            </div>
-
-            <div className="flex items-center gap-2 self-end sm:self-auto">
-              {/* Quick trigger for Vigil bound to this book */}
-              <button
-                id="reader-launch-vigil-btn"
-                onClick={() => setIsVigilOpen(true)}
-                className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-[#FAF7EE] border border-[#E3DAC1] hover:border-[#B59A62] text-[11px] font-serif-scholarly text-[#173B2D]"
-                title="Start timed reading vigil on this book"
-              >
-                <Hourglass className="w-3 h-3 text-[#B59A62]" />
-                <span>Commence Vigil</span>
-              </button>
-
-              <span className="px-2.5 py-1 rounded-lg bg-[#A9C9A9]/25 text-[#173B2D] text-xs font-serif-scholarly font-bold border border-[#A9C9A9]/50">
-                {activeBook.progress}% Read
-              </span>
-            </div>
-          </div>
-
-          {/* Dual Parchment Pages (Physical Reader Simulation) */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-[#FAF7EE] p-6 sm:p-8 rounded-2xl border border-[#E3DAC1] shadow-inner relative">
-            {/* Center Book Spine Crease & Shadow */}
-            <div className="hidden md:block absolute left-1/2 top-4 bottom-4 -translate-x-1/2 w-3 bg-linear-to-r from-black/5 via-black/10 to-transparent pointer-events-none rounded-sm" />
-
-            {/* Left Page */}
-            <div className="space-y-4 font-serif-scholarly text-xs sm:text-sm leading-relaxed text-[#202820] pr-0 md:pr-4">
-              <div className="flex justify-between items-center text-[10px] text-[#8E7541] border-b border-[#E3DAC1]/80 pb-1 font-semibold">
-                <span>FOLIO SECTION {Math.ceil(activeBook.currentPage / 10)}</span>
-                <span>Folio {activeBook.currentPage}</span>
-              </div>
-              <p className="indent-5 first-letter:text-2xl first-letter:font-bold first-letter:text-[#173B2D] first-letter:float-left first-letter:mr-1.5">
-                Consider a closed hypothetical volume enclosing charge density ρ. By Maxwell’s first
-                formulation, the total divergence of the electric induction field across any
-                enveloping boundary directly reflects the net bounded charge enclosed within.
-              </p>
-              <div className="p-3 my-2 bg-[#F3EEDB] rounded-xl border-l-3 border-[#B59A62] text-xs italic font-serif-scholarly shadow-xs">
-                &quot;The flux of the electrostatic field through any closed surface is proportional
-                to the total electric charge enclosed within that surface.&quot;
-              </div>
-              <p className="indent-4">
-                In spherical coordinates, due to radial symmetry, the field is uniform at every
-                equidistant point from the origin, thereby rendering the surface integral elementary
-                and invariant to angular coordinate shifts.
-              </p>
-            </div>
-
-            {/* Right Page */}
-            <div className="space-y-4 font-serif-scholarly text-xs sm:text-sm leading-relaxed text-[#202820] pl-0 md:pl-4">
-              <div className="flex justify-between items-center text-[10px] text-[#8E7541] border-b border-[#E3DAC1]/80 pb-1 font-semibold">
-                <span>{activeBook.category.toUpperCase()}</span>
-                <span>Folio {Math.min(activeBook.totalPages, activeBook.currentPage + 1)}</span>
-              </div>
-              <p className="indent-4">
-                When conducting rigorous field derivations, we substitute the surface integral with
-                the volume integral via the divergence theorem:
-              </p>
-              <div className="p-3 bg-[#173B2D] text-[#F3EEDB] rounded-xl font-mono text-xs text-center border border-[#B59A62]/30 shadow-xs">
-                ∮_S E · da = 1/ε₀ ∫_V ρ dV
-              </div>
-              <p className="indent-4">
-                This enables analytical solutions for continuous charge distributions without
-                resorting to cumbersome piecewise superposition sums.
-              </p>
-
-              {/* Scholar Marginalia Box */}
-              <div className="mt-3 pt-3 border-t border-[#E3DAC1] text-[11px] text-[#8E7541]">
-                <div className="flex items-center justify-between font-semibold mb-1">
-                  <span className="flex items-center gap-1">
-                    <Feather className="w-3 h-3 text-[#B59A62]" />
-                    <span>Scholar Marginalia</span>
-                  </span>
-                  <button
-                    onClick={() => setIsAddingReaderNote(!isAddingReaderNote)}
-                    className="text-[10px] text-[#173B2D] hover:underline"
-                  >
-                    {isAddingReaderNote ? 'Cancel' : '+ Inscribe Note'}
-                  </button>
-                </div>
-
-                {activeBook.notes && (
-                  <div className="bg-[#FFFDF8] p-2.5 rounded-lg border border-[#E3DAC1] text-[#202820] italic whitespace-pre-line max-h-24 overflow-y-auto">
-                    {activeBook.notes}
-                  </div>
-                )}
-
-                {isAddingReaderNote && (
-                  <div className="mt-2 space-y-2">
-                    <input
-                      type="text"
-                      value={readerNoteInput}
-                      onChange={(e) => setReaderNoteInput(e.target.value)}
-                      placeholder="Inscribe observation on current folio..."
-                      className="w-full px-2.5 py-1.5 rounded-lg bg-white border border-[#E3DAC1] text-xs text-[#202820] outline-none"
-                    />
-                    <div className="flex justify-end">
-                      <button
-                        onClick={handleAddReaderNote}
-                        className="px-3 py-1 rounded-lg bg-[#173B2D] text-[#F3EEDB] text-[10px] font-bold"
-                      >
-                        Save Note
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* Reader Pagination & Progress Control */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-2 border-t border-[#E3DAC1]">
-            <div className="flex items-center gap-3">
-              <button
-                id="reader-page-back-btn"
-                onClick={() => handlePageChange(-2)}
-                disabled={activeBook.currentPage <= 1}
-                className="p-2 rounded-xl bg-[#FAF7EE] border border-[#E3DAC1] text-[#173B2D] hover:bg-[#EAE2C8] disabled:opacity-40 transition-colors"
-                title="Turn back two pages"
-              >
-                <ChevronLeft className="w-4 h-4" />
-              </button>
-
-              <span className="text-xs font-serif-scholarly text-[#202820]">
-                Folio <strong>{activeBook.currentPage}</strong> of{' '}
-                <strong>{activeBook.totalPages}</strong>
-              </span>
-
-              <button
-                id="reader-page-forward-btn"
-                onClick={() => handlePageChange(2)}
-                disabled={activeBook.currentPage >= activeBook.totalPages}
-                className="p-2 rounded-xl bg-[#FAF7EE] border border-[#E3DAC1] text-[#173B2D] hover:bg-[#EAE2C8] disabled:opacity-40 transition-colors"
-                title="Turn forward two pages"
-              >
-                <ChevronRight className="w-4 h-4" />
-              </button>
-            </div>
-
-            {/* Jump-to-Page Slider / Input */}
-            <div className="flex items-center gap-3">
-              <label className="text-[11px] font-serif-scholarly text-[#8E7541]">
-                Jump to Folio:
-              </label>
-              <input
-                type="range"
-                min="1"
-                max={activeBook.totalPages}
-                value={activeBook.currentPage}
-                onChange={(e) => handleJumpToPage(parseInt(e.target.value, 10))}
-                className="w-28 sm:w-36 accent-[#173B2D] cursor-pointer"
-              />
-              <span className="text-xs font-serif-scholarly text-[#173B2D] font-bold">
-                {activeBook.currentPage}
-              </span>
-            </div>
-          </div>
+        <div className="space-y-4">
+          <DualFolioReader
+            book={activeBook}
+            onUpdateBook={(updated) => {
+              setActiveBook(updated);
+              onUpdateBook(updated);
+            }}
+            onClose={() => setActiveBook(null)}
+          />
         </div>
       ) : (
         /* Bookshelf Collection Grid */
@@ -508,6 +417,35 @@ export const LibraryView: React.FC<LibraryViewProps> = ({
             <h3 className="font-serif-scholarly text-lg font-bold text-[#173B2D] pb-3 border-b border-[#E3DAC1]">
               Shelve a New Academic Codex
             </h3>
+
+            {/* Document Import Dropzone */}
+            <div className="mt-3 p-3 rounded-xl border border-dashed border-[#B59A62] bg-[#FAF7EE] flex flex-col items-center justify-center gap-1.5 text-center">
+              <UploadCloud className="w-5 h-5 text-[#B59A62]" />
+              <div className="text-xs font-serif-scholarly font-medium text-[#173B2D]">
+                Import PDF or Word (.docx) Manuscript
+              </div>
+              <p className="text-[10px] text-[#8E7541] font-sans">
+                Vector diagrams & typography parsed natively into dual-page folios
+              </p>
+              <button
+                type="button"
+                onClick={() => modalFileInputRef.current?.click()}
+                disabled={isParsingDoc}
+                className="mt-1 px-3 py-1 rounded-lg bg-[#173B2D] text-[#F3EEDB] text-[11px] font-serif-scholarly hover:bg-[#204E3C] transition-colors cursor-pointer disabled:opacity-50"
+              >
+                {isParsingDoc ? 'Illuminating folios...' : uploadedFile ? `Attached: ${uploadedFile.name}` : 'Browse Local Folio'}
+              </button>
+              <input
+                ref={modalFileInputRef}
+                type="file"
+                accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) handleModalDocUpload(file);
+                }}
+              />
+            </div>
 
             <form
               onSubmit={handleCreateBook}

@@ -17,6 +17,14 @@ import {
   Lock,
   Scroll,
 } from 'lucide-react';
+import { VoiceDictationButton } from '@/components/ai/VoiceDictationButton';
+import {
+  playParchmentRustle,
+  playQuillScratch,
+  playWaxSealStamp,
+  playBrassBellChime,
+  playClickTactile,
+} from '@/lib/audio/soundEffects';
 
 interface LearningSanctuaryViewProps {
   courses: Course[];
@@ -154,6 +162,8 @@ export const LearningSanctuaryView: React.FC<LearningSanctuaryViewProps> = ({ co
           isAwakened: true,
           lastVerifiedAt: new Date().toISOString(),
         });
+        playWaxSealStamp();
+        playBrassBellChime();
         setKeyFeedbackMsg(`✨ Key encrypted and sealed in the vault (${data.maskedKey}). Socratic guides are awake.`);
         setLocalKeyInput('');
         setTimeout(() => setKeyFeedbackMsg(null), 3500);
@@ -171,6 +181,7 @@ export const LearningSanctuaryView: React.FC<LearningSanctuaryViewProps> = ({ co
     setIsKeySaving(true);
     setKeyFeedbackMsg(null);
     setKeyErrorMsg(null);
+    playClickTactile();
     try {
       await fetch('/api/ai/key', { method: 'DELETE' });
     } catch {
@@ -196,6 +207,7 @@ export const LearningSanctuaryView: React.FC<LearningSanctuaryViewProps> = ({ co
     e.preventDefault();
     if (!inputMessage.trim() || isLoading) return;
 
+    playParchmentRustle();
     const userText = inputMessage.trim();
     setInputMessage('');
 
@@ -228,6 +240,7 @@ export const LearningSanctuaryView: React.FC<LearningSanctuaryViewProps> = ({ co
 
       if (res.ok) {
         const data = await res.json();
+        playQuillScratch();
         const assistantMsg: ChatMessage = {
           id: `msg_asst_${Date.now()}`,
           role: 'assistant',
@@ -507,7 +520,7 @@ export const LearningSanctuaryView: React.FC<LearningSanctuaryViewProps> = ({ co
         </div>
 
         {/* Input Bar */}
-        <form onSubmit={handleSendMessage} className="mt-4 pt-3 border-t border-[#E3DAC1] flex gap-2">
+        <form onSubmit={handleSendMessage} className="mt-4 pt-3 border-t border-[#E3DAC1] flex items-center gap-2">
           <input
             type="text"
             value={inputMessage}
@@ -515,10 +528,17 @@ export const LearningSanctuaryView: React.FC<LearningSanctuaryViewProps> = ({ co
             placeholder={`Inquire with ${activePersonaObj.name} (${selectedMode} mode)...`}
             className="flex-1 px-4 py-2.5 rounded-xl bg-[#FAF7EE] border border-[#E3DAC1] text-xs font-serif-scholarly text-[#202820] focus:border-[#B59A62] outline-hidden shadow-inner"
           />
+          <VoiceDictationButton
+            onTranscription={(transcribedText) => {
+              playQuillScratch();
+              setInputMessage((prev) => (prev ? `${prev} ${transcribedText}` : transcribedText));
+            }}
+            tooltip="Dictate your inquiry into the Socratic Sanctuary"
+          />
           <button
             type="submit"
             disabled={isLoading || !inputMessage.trim()}
-            className="px-4 py-2.5 rounded-xl bg-[#173B2D] text-[#F3EEDB] hover:bg-[#122E23] disabled:opacity-50 text-xs font-serif-scholarly font-medium flex items-center gap-1.5 transition-colors shadow-xs"
+            className="px-4 py-2.5 rounded-xl bg-[#173B2D] text-[#F3EEDB] hover:bg-[#122E23] disabled:opacity-50 text-xs font-serif-scholarly font-medium flex items-center gap-1.5 transition-colors shadow-xs cursor-pointer"
           >
             <Send className="w-3.5 h-3.5 text-[#B59A62]" />
             <span className="hidden sm:inline">Dispatch</span>

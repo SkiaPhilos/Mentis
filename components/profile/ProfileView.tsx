@@ -28,7 +28,26 @@ import {
   AlertCircle,
   HelpCircle,
   RotateCcw,
+  Volume2,
+  VolumeX,
+  Feather,
+  Bell,
+  Stamp,
+  Music,
 } from 'lucide-react';
+import { AmbianceController } from '@/components/audio/AmbianceController';
+import {
+  isSfxMuted,
+  setSfxMuted,
+  getSfxVolume,
+  setSfxVolume,
+  subscribeSfx,
+  playParchmentRustle,
+  playQuillScratch,
+  playWaxSealStamp,
+  playBrassBellChime,
+  playClickTactile,
+} from '@/lib/audio/soundEffects';
 
 interface ProfileViewProps {
   profile: UserProfile;
@@ -65,6 +84,18 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
   const [verificationStatus, setVerificationStatus] = useState<'idle' | 'testing' | 'success' | 'error'>('idle');
   const [verificationMessage, setVerificationMessage] = useState('');
 
+  // Scholarly Acoustics & Tactile SFX State
+  const [sfxState, setSfxState] = useState({
+    isMuted: isSfxMuted(),
+    volume: getSfxVolume(),
+  });
+
+  React.useEffect(() => {
+    return subscribeSfx((settings) => {
+      setSfxState({ ...settings });
+    });
+  }, []);
+
   // New course modal
   const [isCourseModalOpen, setIsCourseModalOpen] = useState(false);
   const [newCourseName, setNewCourseName] = useState('');
@@ -77,6 +108,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
 
   const handleSaveProfile = (e: React.FormEvent) => {
     e.preventDefault();
+    playWaxSealStamp();
     onUpdateProfile(profileForm);
     setSavedSuccess(true);
     setTimeout(() => setSavedSuccess(false), 2500);
@@ -206,6 +238,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
 
   const handleCreateCourse = (e: React.FormEvent) => {
     e.preventDefault();
+    playParchmentRustle();
     const course: Course = {
       id: `course_${Date.now()}`,
       userId: profile.id,
@@ -832,14 +865,144 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
               </div>
 
               <button
-                onClick={() => onDeleteCourse(course.id)}
-                className="opacity-0 group-hover:opacity-100 p-1.5 text-rose-800 hover:bg-rose-50 rounded-lg transition-opacity"
+                onClick={() => {
+                  playClickTactile();
+                  onDeleteCourse(course.id);
+                }}
+                className="opacity-0 group-hover:opacity-100 p-1.5 text-rose-800 hover:bg-rose-50 rounded-lg transition-opacity cursor-pointer"
                 title="Remove course"
               >
                 <Trash2 className="w-4 h-4" />
               </button>
             </div>
           ))}
+        </div>
+      </div>
+
+      {/* Scholarly Acoustics & Tactile Soundscape Module */}
+      <div id="scholarly-acoustics-panel" className="parchment-card rounded-2xl p-6 sm:p-7 space-y-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-[#E3DAC1]">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-xl bg-[#173B2D]/10 border border-[#173B2D]/20 flex items-center justify-center text-[#173B2D]">
+              <Music className="w-4 h-4" />
+            </div>
+            <div>
+              <h3 className="font-serif-scholarly text-base font-bold text-[#173B2D]">
+                Scholarly Acoustics & Tactile Soundscapes
+              </h3>
+              <p className="text-xs text-[#202820]/70 font-sans">
+                Native Web Audio synthesizer for ambient focus atmospheres and physical manuscript tactile audio.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 self-start sm:self-auto">
+            <button
+              onClick={() => {
+                const nextMuted = !sfxState.isMuted;
+                setSfxMuted(nextMuted);
+                if (!nextMuted) playWaxSealStamp();
+              }}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-serif-scholarly font-medium transition-colors cursor-pointer ${
+                sfxState.isMuted
+                  ? 'bg-rose-50 text-rose-800 border-rose-200'
+                  : 'bg-[#173B2D]/10 text-[#173B2D] border-[#173B2D]/30'
+              }`}
+            >
+              {sfxState.isMuted ? (
+                <>
+                  <VolumeX className="w-3.5 h-3.5" />
+                  <span>Tactile SFX Muted</span>
+                </>
+              ) : (
+                <>
+                  <Volume2 className="w-3.5 h-3.5" />
+                  <span>Tactile SFX Active</span>
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+
+        {/* Global Ambiance Controller Embed */}
+        <div className="space-y-2">
+          <h4 className="text-xs font-serif-scholarly font-bold text-[#173B2D]">
+            Background Ambient Soundscape (Synthesized Online)
+          </h4>
+          <AmbianceController className="w-full max-w-full" />
+        </div>
+
+        {/* Tactile Sound Effects Controls & Auditioning */}
+        <div className="space-y-3 pt-3 border-t border-[#E3DAC1]">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            <div className="space-y-0.5">
+              <h4 className="text-xs font-serif-scholarly font-bold text-[#173B2D]">
+                Tactile SFX Volume & Synthesis
+              </h4>
+              <p className="text-[11px] text-[#202820]/70">
+                Auditory feedback synthesized in real-time without external network assets or MP3 audio downloads.
+              </p>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <input
+                type="range"
+                min="0"
+                max="1"
+                step="0.05"
+                disabled={sfxState.isMuted}
+                value={sfxState.volume}
+                onChange={(e) => {
+                  const vol = parseFloat(e.target.value);
+                  setSfxVolume(vol);
+                }}
+                className="w-28 accent-[#173B2D] cursor-pointer"
+                title="Tactile sound effects volume"
+              />
+              <span className="font-mono text-xs text-[#8E7541] w-9 text-right font-medium">
+                {sfxState.isMuted ? '0%' : `${Math.round(sfxState.volume * 100)}%`}
+              </span>
+            </div>
+          </div>
+
+          {/* Audition buttons */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 pt-1">
+            <button
+              type="button"
+              onClick={() => playParchmentRustle()}
+              className="flex items-center justify-center gap-2 p-2.5 rounded-xl bg-[#FAF7EE] border border-[#E3DAC1] hover:border-[#B59A62] text-xs font-serif-scholarly text-[#173B2D] transition-colors cursor-pointer"
+            >
+              <Scroll className="w-3.5 h-3.5 text-[#B59A62]" />
+              <span>Rustle Parchment</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => playQuillScratch()}
+              className="flex items-center justify-center gap-2 p-2.5 rounded-xl bg-[#FAF7EE] border border-[#E3DAC1] hover:border-[#B59A62] text-xs font-serif-scholarly text-[#173B2D] transition-colors cursor-pointer"
+            >
+              <Feather className="w-3.5 h-3.5 text-[#8E7541]" />
+              <span>Quill Scratch</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => playWaxSealStamp()}
+              className="flex items-center justify-center gap-2 p-2.5 rounded-xl bg-[#FAF7EE] border border-[#E3DAC1] hover:border-[#B59A62] text-xs font-serif-scholarly text-[#173B2D] transition-colors cursor-pointer"
+            >
+              <Stamp className="w-3.5 h-3.5 text-rose-800" />
+              <span>Wax Seal Stamp</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => playBrassBellChime()}
+              className="flex items-center justify-center gap-2 p-2.5 rounded-xl bg-[#FAF7EE] border border-[#E3DAC1] hover:border-[#B59A62] text-xs font-serif-scholarly text-[#173B2D] transition-colors cursor-pointer"
+            >
+              <Bell className="w-3.5 h-3.5 text-[#B59A62]" />
+              <span>Brass Bell Chime</span>
+            </button>
+          </div>
         </div>
       </div>
 

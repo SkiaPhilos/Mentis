@@ -18,6 +18,7 @@ import {
   ChevronRight,
   GripHorizontal,
   Sparkles,
+  SlidersHorizontal,
 } from 'lucide-react';
 
 interface ScheduleViewProps {
@@ -45,10 +46,32 @@ export const ScheduleView: React.FC<ScheduleViewProps> = ({
   // View mode: 'grid' (7-Day visual matrix) vs 'agenda' (Day list view)
   const [viewMode, setViewMode] = useState<'grid' | 'agenda'>('grid');
 
-  // Time range settings
-  const [timeRangeMode, setTimeRangeMode] = useState<'standard' | 'extended'>('standard');
-  const startHour = timeRangeMode === 'standard' ? 8 : 7; // 8:00 AM or 7:00 AM
-  const endHour = timeRangeMode === 'standard' ? 20 : 22; // 8:00 PM or 10:00 PM
+  // Time range settings & modes: Standard, Extended, 24-Hour, Custom
+  const [timeRangeMode, setTimeRangeMode] = useState<'standard' | 'extended' | '24hour' | 'custom'>('standard');
+  const [customStartHour, setCustomStartHour] = useState<number>(6); // e.g. 6:00 AM
+  const [customEndHour, setCustomEndHour] = useState<number>(22); // e.g. 10:00 PM
+  const [isTimePickerOpen, setIsTimePickerOpen] = useState<boolean>(false);
+
+  // Derive startHour and endHour (endHour represents the upper bound boundary, so slot endHour-1 is included)
+  const { startHour, endHour } = useMemo(() => {
+    if (timeRangeMode === 'standard') {
+      // 8:00 AM to 9:00 PM boundary (includes full 8:00 PM - 9:00 PM slot, fixing 1-hour short bug)
+      return { startHour: 8, endHour: 21 };
+    }
+    if (timeRangeMode === 'extended') {
+      // 7:00 AM to 11:00 PM boundary (includes full 10:00 PM - 11:00 PM slot)
+      return { startHour: 7, endHour: 23 };
+    }
+    if (timeRangeMode === '24hour') {
+      // Complete 24-hour day matrix (00:00 to 24:00)
+      return { startHour: 0, endHour: 24 };
+    }
+    // Custom: ensure start < end
+    const s = Math.max(0, Math.min(customStartHour, 22));
+    const e = Math.min(24, Math.max(s + 1, customEndHour + 1));
+    return { startHour: s, endHour: e };
+  }, [timeRangeMode, customStartHour, customEndHour]);
+
   const startMinutes = startHour * 60;
   const endMinutes = endHour * 60;
   const totalMinutes = endMinutes - startMinutes;
@@ -395,18 +418,206 @@ export const ScheduleView: React.FC<ScheduleViewProps> = ({
             </button>
           </div>
 
-          {/* Time Span Range Toggle (Grid only) */}
+          {/* Time Span & 24-Hour Controls (Grid mode only) */}
           {viewMode === 'grid' && (
-            <button
-              id="toggle-time-range-btn"
-              onClick={() =>
-                setTimeRangeMode(timeRangeMode === 'standard' ? 'extended' : 'standard')
-              }
-              title="Toggle Core vs Extended Academic Hours"
-              className="px-2.5 py-1.5 rounded-xl bg-[#FAF7EE] border border-[#E3DAC1] hover:border-[#B59A62] text-[11px] font-serif-scholarly text-[#173B2D] transition-colors"
-            >
-              {timeRangeMode === 'standard' ? '8am – 8pm' : '7am – 10pm'}
-            </button>
+            <div className="relative flex items-center gap-1.5">
+              {/* 1-Click 24-Hour Toggle */}
+              <button
+                id="toggle-24h-btn"
+                type="button"
+                onClick={() =>
+                  setTimeRangeMode((prev) => (prev === '24hour' ? 'standard' : '24hour'))
+                }
+                title="Toggle Full 24-Hour Academic Matrix"
+                className={`px-2.5 py-1.5 rounded-xl border text-[11px] font-serif-scholarly font-medium transition-colors cursor-pointer ${
+                  timeRangeMode === '24hour'
+                    ? 'bg-[#173B2D] border-[#173B2D] text-[#F3EEDB] shadow-xs'
+                    : 'bg-[#FAF7EE] border-[#E3DAC1] hover:border-[#B59A62] text-[#173B2D]'
+                }`}
+              >
+                24-Hour Mode
+              </button>
+
+              {/* Time Span Selector Popover Trigger */}
+              <div className="relative">
+                <button
+                  id="toggle-time-range-btn"
+                  type="button"
+                  onClick={() => setIsTimePickerOpen(!isTimePickerOpen)}
+                  title="Configure Timetable Range (Standard, Extended, 24-Hour, or Custom)"
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-[#FAF7EE] border border-[#E3DAC1] hover:border-[#B59A62] text-[11px] font-serif-scholarly text-[#173B2D] transition-colors cursor-pointer"
+                >
+                  <SlidersHorizontal className="w-3 h-3 text-[#B59A62]" />
+                  <span>
+                    {timeRangeMode === 'standard'
+                      ? 'Core (8am – 8pm)'
+                      : timeRangeMode === 'extended'
+                      ? 'Extended (7am – 10pm)'
+                      : timeRangeMode === '24hour'
+                      ? '24-Hour Cycle'
+                      : `Custom (${customStartHour % 12 || 12}${customStartHour >= 12 ? 'pm' : 'am'} – ${customEndHour % 12 || 12}${customEndHour >= 12 ? 'pm' : 'am'})`}
+                  </span>
+                </button>
+
+                {/* Popover Menu for Timetable Span Selection */}
+                {isTimePickerOpen && (
+                  <div
+                    id="time-range-popover"
+                    className="absolute right-0 top-full mt-2 w-72 p-3.5 rounded-2xl bg-[#FAF7EE] border border-[#B59A62]/40 shadow-xl z-50 font-sans text-xs space-y-3"
+                  >
+                    <div className="flex items-center justify-between pb-2 border-b border-[#E3DAC1]">
+                      <span className="font-serif-scholarly font-bold text-[#173B2D] text-xs">
+                        Timetable Hour Span
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setIsTimePickerOpen(false)}
+                        className="text-[10px] text-[#8E7541] hover:underline font-mono cursor-pointer"
+                      >
+                        Close
+                      </button>
+                    </div>
+
+                    {/* Presets */}
+                    <div className="space-y-1.5">
+                      <div className="text-[10px] uppercase font-mono text-[#8E7541] font-semibold">
+                        Presets
+                      </div>
+                      <div className="grid grid-cols-1 gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setTimeRangeMode('standard');
+                            setIsTimePickerOpen(false);
+                          }}
+                          className={`w-full text-left px-2.5 py-1.5 rounded-lg border text-xs transition-colors cursor-pointer flex items-center justify-between ${
+                            timeRangeMode === 'standard'
+                              ? 'bg-[#173B2D] text-[#F3EEDB] border-[#173B2D]'
+                              : 'bg-white/70 border-[#E3DAC1] hover:border-[#B59A62] text-[#202820]'
+                          }`}
+                        >
+                          <span className="font-medium">Standard Academic</span>
+                          <span className="text-[10px] opacity-80 font-mono">8 AM – 8 PM (Slot Included)</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setTimeRangeMode('extended');
+                            setIsTimePickerOpen(false);
+                          }}
+                          className={`w-full text-left px-2.5 py-1.5 rounded-lg border text-xs transition-colors cursor-pointer flex items-center justify-between ${
+                            timeRangeMode === 'extended'
+                              ? 'bg-[#173B2D] text-[#F3EEDB] border-[#173B2D]'
+                              : 'bg-white/70 border-[#E3DAC1] hover:border-[#B59A62] text-[#202820]'
+                          }`}
+                        >
+                          <span className="font-medium">Extended Scholarly</span>
+                          <span className="text-[10px] opacity-80 font-mono">7 AM – 10 PM</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setTimeRangeMode('24hour');
+                            setIsTimePickerOpen(false);
+                          }}
+                          className={`w-full text-left px-2.5 py-1.5 rounded-lg border text-xs transition-colors cursor-pointer flex items-center justify-between ${
+                            timeRangeMode === '24hour'
+                              ? 'bg-[#173B2D] text-[#F3EEDB] border-[#173B2D]'
+                              : 'bg-white/70 border-[#E3DAC1] hover:border-[#B59A62] text-[#202820]'
+                          }`}
+                        >
+                          <span className="font-medium">Full 24-Hour Matrix</span>
+                          <span className="text-[10px] opacity-80 font-mono">00:00 – 24:00 (All 48 Slots)</span>
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Custom Range Configuration (X to Y) */}
+                    <div className="pt-2 border-t border-[#E3DAC1] space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] uppercase font-mono text-[#8E7541] font-semibold">
+                          Custom Span (X to Y)
+                        </span>
+                        {timeRangeMode === 'custom' && (
+                          <span className="text-[10px] text-[#173B2D] font-bold font-mono">Active</span>
+                        )}
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <label className="text-[10px] text-[#202820]/70 block mb-1">
+                            From (Start)
+                          </label>
+                          <select
+                            id="custom-time-start-select"
+                            value={customStartHour}
+                            onChange={(e) => {
+                              const val = parseInt(e.target.value, 10);
+                              setCustomStartHour(val);
+                              if (val >= customEndHour) {
+                                setCustomEndHour(Math.min(23, val + 2));
+                              }
+                              setTimeRangeMode('custom');
+                            }}
+                            className="w-full px-2 py-1.5 rounded-lg border border-[#E3DAC1] bg-white text-xs font-mono"
+                          >
+                            {Array.from({ length: 24 }, (_, i) => {
+                              const h12 = i % 12 === 0 ? 12 : i % 12;
+                              const p = i >= 12 ? 'PM' : 'AM';
+                              return (
+                                <option key={i} value={i}>
+                                  {h12}:00 {p}
+                                </option>
+                              );
+                            })}
+                          </select>
+                        </div>
+
+                        <div>
+                          <label className="text-[10px] text-[#202820]/70 block mb-1">
+                            To (End Slot)
+                          </label>
+                          <select
+                            id="custom-time-end-select"
+                            value={customEndHour}
+                            onChange={(e) => {
+                              const val = parseInt(e.target.value, 10);
+                              setCustomEndHour(val);
+                              setTimeRangeMode('custom');
+                            }}
+                            className="w-full px-2 py-1.5 rounded-lg border border-[#E3DAC1] bg-white text-xs font-mono"
+                          >
+                            {Array.from({ length: 24 }, (_, i) => {
+                              if (i <= customStartHour) return null;
+                              const h12 = i % 12 === 0 ? 12 : i % 12;
+                              const p = i >= 12 ? 'PM' : 'AM';
+                              return (
+                                <option key={i} value={i}>
+                                  {h12}:00 {p}
+                                </option>
+                              );
+                            })}
+                          </select>
+                        </div>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setTimeRangeMode('custom');
+                          setIsTimePickerOpen(false);
+                        }}
+                        className="w-full py-1.5 rounded-lg bg-[#173B2D] text-[#F3EEDB] text-xs font-medium hover:bg-[#204E3C] transition-colors cursor-pointer mt-1"
+                      >
+                        Apply Custom Span
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
           )}
 
           {/* Transit Settings Drawer Toggle */}
@@ -623,7 +834,10 @@ export const ScheduleView: React.FC<ScheduleViewProps> = ({
             id="timetable-scroll-viewport"
             className="overflow-x-auto select-none rounded-xl border border-[#E3DAC1] bg-[#FAF7EE] shadow-inner scrollbar-thin"
           >
-            <div className="min-w-[840px] md:min-w-[1000px]">
+            <div
+              className="w-full"
+              style={{ minWidth: `${Math.max(880, hourMarkers.length * 68 + 112)}px` }}
+            >
               {/* Header Timeline Ruler */}
               <div className="flex border-b border-[#E3DAC1] bg-[#F4EEDC] sticky top-0 z-20">
                 {/* Top-left corner spacer */}

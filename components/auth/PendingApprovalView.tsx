@@ -224,58 +224,6 @@ export const PendingApprovalView: React.FC<PendingApprovalViewProps> = ({
               </span>
             )}
           </div>
-
-          {/* Academy Overseer Testing & Evaluation Simulator */}
-          <div
-            id="overseer-simulation-drawer"
-            className="rounded-xl border border-[#B59A62]/40 bg-[#F3EEDB]/50 p-3.5 space-y-2.5 text-xs font-sans"
-          >
-            <div className="flex items-center justify-between">
-              <span className="font-serif-scholarly font-bold text-[#173B2D] flex items-center gap-1.5 text-xs">
-                <ShieldCheck className="w-3.5 h-3.5 text-[#B59A62]" />
-                Academy Overseer Testing Controls
-              </span>
-              <span className="text-[10px] text-[#8E7541] font-mono">
-                Workflow Verification Tool
-              </span>
-            </div>
-
-            <p className="text-[11px] text-[#202820]/75">
-              Simulate approval actions to verify state transitions in real time:
-            </p>
-
-            <div className="flex flex-wrap items-center gap-2">
-              <button
-                id="simulate-approve-btn"
-                type="button"
-                onClick={() => onUpdateApprovalStatus?.('approved')}
-                className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-[#173B2D] text-[#F3EEDB] text-xs font-medium hover:bg-[#204E3C] transition-colors cursor-pointer"
-              >
-                <CheckCircle2 className="w-3 h-3 text-[#B59A62]" />
-                <span>Approve Scholar</span>
-              </button>
-
-              <button
-                id="simulate-reject-btn"
-                type="button"
-                onClick={() => onUpdateApprovalStatus?.('rejected')}
-                className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-[#FAF7EE] border border-[#B33928]/40 text-[#B33928] text-xs font-medium hover:bg-[#B33928]/10 transition-colors cursor-pointer"
-              >
-                <XCircle className="w-3 h-3 text-[#B33928]" />
-                <span>Reject Access</span>
-              </button>
-
-              <button
-                id="simulate-pending-btn"
-                type="button"
-                onClick={() => onUpdateApprovalStatus?.('pending')}
-                className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-[#FAF7EE] border border-[#E3DAC1] text-[#202820]/80 text-xs font-medium hover:border-[#B59A62] transition-colors cursor-pointer"
-              >
-                <Clock className="w-3 h-3 text-[#8E7541]" />
-                <span>Reset to Pending</span>
-              </button>
-            </div>
-          </div>
         </div>
       </main>
 

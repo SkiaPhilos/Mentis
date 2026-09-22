@@ -5,6 +5,8 @@ import { Note, Course, NoteBlock } from '@/types/mentis';
 import { MentisRepository } from '@/lib/storage/repository';
 import { ScholarlyNotesIcon } from '@/components/icons/ScholarlyIcons';
 import { Plus, Trash2, Tag, Search, Sparkles, ArrowLeft, BookOpen, Quote, Code, Heading } from 'lucide-react';
+import { VoiceDictationButton } from '@/components/ai/VoiceDictationButton';
+import { playParchmentRustle, playQuillScratch, playClickTactile } from '@/lib/audio/soundEffects';
 
 interface NotesViewProps {
   notes: Note[];
@@ -49,6 +51,7 @@ export const NotesView: React.FC<NotesViewProps> = ({
   });
 
   const handleCreateNewNote = () => {
+    playParchmentRustle();
     const newNote: Note = {
       id: createScholarlyId('note'),
       userId: 'scholar_usr_01',
@@ -85,10 +88,26 @@ export const NotesView: React.FC<NotesViewProps> = ({
 
   const handleAddBlock = (type: NoteBlock['type']) => {
     if (!activeNote) return;
+    playQuillScratch();
     const newBlock: NoteBlock = {
       id: createScholarlyId('block'),
       type,
       content: type === 'heading' ? 'New Section' : '',
+    };
+    onUpdateNote({
+      ...activeNote,
+      blocks: [...activeNote.blocks, newBlock],
+      updatedAt: new Date().toISOString(),
+    });
+  };
+
+  const handleAppendDictatedParagraph = (transcribedText: string) => {
+    if (!activeNote) return;
+    playQuillScratch();
+    const newBlock: NoteBlock = {
+      id: createScholarlyId('block'),
+      type: 'paragraph',
+      content: transcribedText,
     };
     onUpdateNote({
       ...activeNote,
@@ -108,6 +127,7 @@ export const NotesView: React.FC<NotesViewProps> = ({
 
   const handleDeleteBlock = (blockId: string) => {
     if (!activeNote || activeNote.blocks.length <= 1) return;
+    playClickTactile();
     onUpdateNote({
       ...activeNote,
       blocks: activeNote.blocks.filter((b) => b.id !== blockId),
@@ -246,7 +266,10 @@ export const NotesView: React.FC<NotesViewProps> = ({
               return (
                 <div
                   key={note.id}
-                  onClick={() => setActiveNoteId(note.id)}
+                  onClick={() => {
+                    playParchmentRustle();
+                    setActiveNoteId(note.id);
+                  }}
                   className={`p-3 rounded-xl border transition-all cursor-pointer ${
                     isSelected
                       ? 'bg-[#FAF7EE] border-[#B59A62] shadow-xs'
@@ -293,18 +316,26 @@ export const NotesView: React.FC<NotesViewProps> = ({
               {/* Top Controls */}
               <div className="flex items-center justify-between pb-3 border-b border-[#E3DAC1]">
                 <button
-                  onClick={() => setActiveNoteId(null)}
-                  className="lg:hidden flex items-center gap-1 text-xs font-serif-scholarly text-[#173B2D]"
+                  onClick={() => {
+                    playClickTactile();
+                    setActiveNoteId(null);
+                  }}
+                  className="lg:hidden flex items-center gap-1 text-xs font-serif-scholarly text-[#173B2D] cursor-pointer"
                 >
                   <ArrowLeft className="w-3.5 h-3.5" />
                   <span>Back to Manuscripts</span>
                 </button>
 
                 <div className="flex items-center gap-2 ml-auto">
+                  <VoiceDictationButton
+                    onTranscription={handleAppendDictatedParagraph}
+                    tooltip="Dictate voice transcription into new paragraph"
+                  />
+
                   <button
                     onClick={handleAISummarize}
                     disabled={isGeneratingAI}
-                    className="flex items-center gap-1.5 px-3 py-1 text-xs font-serif-scholarly text-[#8E7541] bg-[#FAF7EE] border border-[#B59A62]/50 hover:bg-[#FAF7EE] rounded-lg transition-colors"
+                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-serif-scholarly text-[#8E7541] bg-[#FAF7EE] border border-[#B59A62]/50 hover:bg-[#FAF7EE] rounded-xl transition-colors cursor-pointer"
                     title="Generate scholarly synthesis & recommended title"
                   >
                     <Sparkles className="w-3.5 h-3.5 text-[#B59A62]" />
@@ -313,10 +344,11 @@ export const NotesView: React.FC<NotesViewProps> = ({
 
                   <button
                     onClick={() => {
+                      playClickTactile();
                       onDeleteNote(activeNote.id);
                       setActiveNoteId(null);
                     }}
-                    className="p-1.5 text-rose-800 hover:bg-rose-50 rounded-lg"
+                    className="p-1.5 text-rose-800 hover:bg-rose-50 rounded-xl cursor-pointer"
                     title="Delete manuscript"
                   >
                     <Trash2 className="w-4 h-4" />
@@ -324,14 +356,23 @@ export const NotesView: React.FC<NotesViewProps> = ({
                 </div>
               </div>
 
-              {/* Manuscript Title Input */}
-              <div>
+              {/* Manuscript Title Input with Voice Dictation */}
+              <div className="flex items-center gap-2">
                 <input
                   type="text"
                   value={activeNote.title}
                   onChange={(e) => handleUpdateTitle(e.target.value)}
                   placeholder="Manuscript Title..."
-                  className="w-full font-serif-scholarly text-xl sm:text-2xl font-bold text-[#173B2D] bg-transparent border-b border-transparent hover:border-[#E3DAC1] focus:border-[#B59A62] outline-hidden pb-1"
+                  className="flex-1 font-serif-scholarly text-xl sm:text-2xl font-bold text-[#173B2D] bg-transparent border-b border-transparent hover:border-[#E3DAC1] focus:border-[#B59A62] outline-hidden pb-1"
+                />
+                <VoiceDictationButton
+                  compact
+                  onTranscription={(text) =>
+                    handleUpdateTitle(
+                      activeNote.title ? `${activeNote.title} ${text}` : text
+                    )
+                  }
+                  tooltip="Dictate manuscript title"
                 />
               </div>
 
@@ -376,13 +417,28 @@ export const NotesView: React.FC<NotesViewProps> = ({
                     )}
 
                     {block.type === 'paragraph' && (
-                      <textarea
-                        value={block.content}
-                        onChange={(e) => handleUpdateBlockContent(block.id, e.target.value)}
-                        rows={3}
-                        className="w-full font-sans text-sm leading-relaxed text-[#202820] bg-transparent border border-transparent hover:border-[#E3DAC1] focus:border-[#B59A62] rounded-lg p-2 outline-hidden resize-y"
-                        placeholder="Write paragraphs, proofs, or notes..."
-                      />
+                      <div className="relative">
+                        <textarea
+                          value={block.content}
+                          onChange={(e) => handleUpdateBlockContent(block.id, e.target.value)}
+                          rows={3}
+                          className="w-full font-sans text-sm leading-relaxed text-[#202820] bg-transparent border border-transparent hover:border-[#E3DAC1] focus:border-[#B59A62] rounded-lg p-2 pr-9 outline-hidden resize-y"
+                          placeholder="Write paragraphs, proofs, or notes..."
+                        />
+                        <div className="absolute right-2 top-2 z-10">
+                          <VoiceDictationButton
+                            compact
+                            onTranscription={(text) => {
+                              playQuillScratch();
+                              handleUpdateBlockContent(
+                                block.id,
+                                block.content ? `${block.content} ${text}` : text
+                              );
+                            }}
+                            tooltip="Dictate directly into paragraph"
+                          />
+                        </div>
+                      </div>
                     )}
 
                     {block.type === 'quote' && (

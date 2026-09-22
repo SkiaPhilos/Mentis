@@ -13,7 +13,9 @@ import { AvatarVisual } from '@/components/character/AvatarVisual';
 import { MentisGuide } from '@/components/character/MentisGuide';
 import { PWAInstallButton } from '@/components/pwa/PWAInstallButton';
 import { UserProfile } from '@/types/mentis';
-import { ShieldCheck, LogIn, KeyRound } from 'lucide-react';
+import { ShieldCheck, LogIn, KeyRound, LogOut } from 'lucide-react';
+import { AmbianceController } from '@/components/audio/AmbianceController';
+import { playParchmentRustle, playClickTactile } from '@/lib/audio/soundEffects';
 
 export type ActiveTab = 'desk' | 'schedule' | 'notes' | 'library' | 'learning' | 'profile' | 'admin';
 
@@ -22,6 +24,7 @@ interface ScholarlyShellProps {
   onSelectTab: (tab: ActiveTab) => void;
   profile: UserProfile;
   onOpenAuth?: () => void;
+  onLogout?: () => void;
   children: React.ReactNode;
 }
 
@@ -30,6 +33,7 @@ export const ScholarlyShell: React.FC<ScholarlyShellProps> = ({
   onSelectTab,
   profile,
   onOpenAuth,
+  onLogout,
   children,
 }) => {
   const navItems = [
@@ -115,8 +119,11 @@ export const ScholarlyShell: React.FC<ScholarlyShellProps> = ({
                 <button
                   key={item.id}
                   id={`nav-${item.id}`}
-                  onClick={() => onSelectTab(item.id)}
-                  className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl font-serif-scholarly text-sm transition-all ${
+                  onClick={() => {
+                    playParchmentRustle();
+                    onSelectTab(item.id);
+                  }}
+                  className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl font-serif-scholarly text-sm transition-all cursor-pointer ${
                     isActive
                       ? 'bg-[#173B2D] text-[#F3EEDB] font-semibold shadow-xs'
                       : 'text-[#202820]/80 hover:bg-[#EAE2C8]/70 hover:text-[#173B2D]'
@@ -136,8 +143,11 @@ export const ScholarlyShell: React.FC<ScholarlyShellProps> = ({
             {profile.role === 'admin' && (
               <button
                 id="nav-admin"
-                onClick={() => onSelectTab('admin')}
-                className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl font-serif-scholarly text-sm transition-all ${
+                onClick={() => {
+                  playParchmentRustle();
+                  onSelectTab('admin');
+                }}
+                className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl font-serif-scholarly text-sm transition-all cursor-pointer ${
                   activeTab === 'admin'
                     ? 'bg-[#173B2D] text-[#F3EEDB] font-semibold shadow-xs'
                     : 'text-[#202820]/80 hover:bg-[#EAE2C8]/70 hover:text-[#173B2D]'
@@ -153,20 +163,27 @@ export const ScholarlyShell: React.FC<ScholarlyShellProps> = ({
           </nav>
         </div>
 
-        {/* Sidebar Footer: The Mentis Guide & PWA Install */}
+        {/* Sidebar Footer: Scholarly Ambiance, The Mentis Guide & PWA Install */}
         <div className="pt-4 border-t border-[#E3DAC1] space-y-3">
-          {onOpenAuth && (
+          <div className="w-full">
+            <AmbianceController />
+          </div>
+
+          {onLogout && (
             <button
-              id="sidebar-switch-scholar-btn"
+              id="sidebar-logout-btn"
               type="button"
-              onClick={onOpenAuth}
-              className="w-full flex items-center justify-between px-3 py-2 rounded-xl bg-[#F3EEDB] border border-[#E3DAC1] hover:border-[#B59A62] text-xs font-serif-scholarly text-[#173B2D] transition-colors cursor-pointer"
+              onClick={() => {
+                playClickTactile();
+                onLogout();
+              }}
+              className="w-full flex items-center justify-between px-3 py-2 rounded-xl bg-[#FAF7EE] border border-[#E3DAC1] hover:border-rose-400 hover:bg-rose-50/50 text-xs font-serif-scholarly text-[#202820] hover:text-rose-900 transition-colors cursor-pointer"
             >
               <span className="flex items-center gap-2">
-                <KeyRound className="w-3.5 h-3.5 text-[#8E7541]" />
-                <span>Gates of Mentis</span>
+                <LogOut className="w-3.5 h-3.5 text-rose-700" />
+                <span>Log Out of Sanctum</span>
               </span>
-              <span className="text-[10px] text-[#8E7541] font-sans">Switch</span>
+              <span className="text-[10px] text-rose-800 font-sans">Exit</span>
             </button>
           )}
 
@@ -184,6 +201,34 @@ export const ScholarlyShell: React.FC<ScholarlyShellProps> = ({
 
       {/* Main Content Area */}
       <main className="flex-1 flex flex-col min-w-0 pb-20 md:pb-6">
+        {/* Desktop Top Sub-Header */}
+        <header className="hidden md:flex items-center justify-between px-6 lg:px-8 py-3 bg-[#FAF7EE]/70 border-b border-[#E3DAC1]/60">
+          <div className="flex items-center gap-2 text-xs font-serif-scholarly text-[#8E7541]">
+            <span className="font-semibold text-[#173B2D]">Mentis Academia</span>
+            <span>•</span>
+            <span>{profile.institution || 'Sanctuary of Scholarly Thought'}</span>
+            <span className="text-[#B59A62]">({profile.role === 'admin' ? 'Administrator' : 'Scholar'})</span>
+          </div>
+          <div className="flex items-center gap-3">
+            <AmbianceController />
+            {onLogout && (
+              <button
+                id="desktop-logout-btn"
+                type="button"
+                onClick={() => {
+                  playClickTactile();
+                  onLogout();
+                }}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#FAF7EE] border border-[#E3DAC1] hover:border-rose-400 hover:bg-rose-50/60 text-xs font-serif-scholarly text-[#202820] hover:text-rose-900 transition-colors cursor-pointer"
+                title="Log out of sanctuary"
+              >
+                <LogOut className="w-3.5 h-3.5 text-rose-700" />
+                <span>Log Out</span>
+              </button>
+            )}
+          </div>
+        </header>
+
         {/* Mobile Top Header */}
         <header
           id="mentis-mobile-header"
@@ -204,20 +249,27 @@ export const ScholarlyShell: React.FC<ScholarlyShellProps> = ({
           </div>
 
           <div className="flex items-center gap-2">
-            {onOpenAuth && (
+            <AmbianceController compact />
+            {onLogout && (
               <button
-                id="mobile-switch-scholar-btn"
+                id="mobile-logout-btn"
                 type="button"
-                onClick={onOpenAuth}
-                className="p-1.5 rounded-lg border border-[#E3DAC1] text-[#173B2D] hover:bg-[#EAE2C8] cursor-pointer"
-                title="Open Gates & Switch Scholar"
+                onClick={() => {
+                  playClickTactile();
+                  onLogout();
+                }}
+                className="p-1.5 rounded-lg border border-[#E3DAC1] text-rose-700 hover:bg-rose-50 cursor-pointer"
+                title="Log out"
               >
-                <KeyRound className="w-4 h-4 text-[#8E7541]" />
+                <LogOut className="w-4 h-4" />
               </button>
             )}
             <PWAInstallButton compact />
             <div
-              onClick={() => onSelectTab('profile')}
+              onClick={() => {
+                playParchmentRustle();
+                onSelectTab('profile');
+              }}
               className="cursor-pointer"
             >
               <AvatarVisual avatarId={profile.avatarId} size={34} interactive={false} />
@@ -242,8 +294,11 @@ export const ScholarlyShell: React.FC<ScholarlyShellProps> = ({
           return (
             <button
               key={item.id}
-              onClick={() => onSelectTab(item.id)}
-              className={`flex flex-col items-center py-1 px-2 rounded-lg transition-colors ${
+              onClick={() => {
+                playParchmentRustle();
+                onSelectTab(item.id);
+              }}
+              className={`flex flex-col items-center py-1 px-2 rounded-lg transition-colors cursor-pointer ${
                 isActive ? 'text-[#173B2D]' : 'text-[#202820]/60'
               }`}
             >

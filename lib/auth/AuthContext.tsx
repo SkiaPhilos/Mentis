@@ -17,28 +17,28 @@ interface SignUpData {
 }
 
 interface AuthContextType {
-  user: UserProfile;
+  user: UserProfile | null;
   isAuthenticated: boolean;
   isLoading: boolean;
   login: (email: string, password?: string) => Promise<{ success: boolean; error?: string }>;
   signup: (data: SignUpData) => Promise<{ success: boolean; error?: string }>;
   logout: () => Promise<void>;
   updateApprovalStatus: (status: ApprovalStatus) => void;
-  switchDemoAccount: (role: 'admin' | 'pending' | 'rejected') => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  // Subscribe to MentisRepository profile changes
+  // Subscribe to MentisRepository active auth session
   const activeProfile = useSyncExternalStore(
     MentisRepository.subscribe,
     MentisRepository.getActiveAuthUserSnapshot,
-    MentisRepository.getDefaultProfile
+    MentisRepository.getDefaultActiveAuthUser
   );
 
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const user = activeProfile;
+  const isAuthenticated = !!user;
 
   // Sync with Supabase Auth state if configured
   useEffect(() => {
@@ -283,6 +283,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const updateApprovalStatus = (status: ApprovalStatus) => {
+    if (!user) return;
     const updated: UserProfile = {
       ...user,
       approvalStatus: status,
@@ -304,27 +305,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }).catch(() => {});
   };
 
-  const switchDemoAccount = (role: 'admin' | 'pending' | 'rejected') => {
-    if (role === 'admin') {
-      login('scholar@mentis.academic');
-    } else if (role === 'pending') {
-      login('h.farooq@comsats.edu.pk');
-    } else if (role === 'rejected') {
-      login('a.siddiqui@alumni.ox.ac.uk');
-    }
-  };
-
   return (
     <AuthContext.Provider
       value={{
         user,
-        isAuthenticated: Boolean(user),
+        isAuthenticated,
         isLoading,
         login,
         signup,
         logout,
         updateApprovalStatus,
-        switchDemoAccount,
       }}
     >
       {children}
