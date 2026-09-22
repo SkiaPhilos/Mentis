@@ -21,7 +21,7 @@ import {
   Loader2,
   Check,
 } from 'lucide-react';
-import mammoth from 'mammoth';
+import { loadPdfDocument, parseDocx } from '@/lib/documentParsers';
 
 interface DualFolioReaderProps {
   book: Book;
@@ -80,37 +80,10 @@ export const DualFolioReader: React.FC<DualFolioReaderProps> = ({
 
       try {
         setIsPdfLoading(true);
-        const pdfjsLib = await import('pdfjs-dist');
-        if (!pdfjsLib.GlobalWorkerOptions.workerSrc) {
-          pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.mjs`;
-        }
-
-        // Convert base64 / data URL to ArrayBuffer or load directly
-        let loadingTask;
-        if (currentBook.fileData.startsWith('data:application/pdf;base64,') || currentBook.fileData.startsWith('data:')) {
-          const base64 = currentBook.fileData.split(',')[1];
-          const binary = atob(base64);
-          const bytes = new Uint8Array(binary.length);
-          for (let i = 0; i < binary.length; i++) {
-            bytes[i] = binary.charCodeAt(i);
-          }
-          loadingTask = pdfjsLib.getDocument({ data: bytes });
-        } else if (currentBook.fileData.startsWith('http')) {
-          loadingTask = pdfjsLib.getDocument(currentBook.fileData);
-        } else {
-          // Standard base64
-          const binary = atob(currentBook.fileData);
-          const bytes = new Uint8Array(binary.length);
-          for (let i = 0; i < binary.length; i++) {
-            bytes[i] = binary.charCodeAt(i);
-          }
-          loadingTask = pdfjsLib.getDocument({ data: bytes });
-        }
-
-        const doc = await loadingTask.promise;
+        const doc = await loadPdfDocument(currentBook.fileData);
         if (!isCancelled) {
           setPdfDoc(doc);
-          if (doc.numPages && doc.numPages !== currentBook.totalPages) {
+          if (doc?.numPages && doc.numPages !== currentBook.totalPages) {
             onUpdateBookRef.current({
               ...currentBook,
               totalPages: doc.numPages,
@@ -217,25 +190,20 @@ export const DualFolioReader: React.FC<DualFolioReaderProps> = ({
         const reader = new FileReader();
         reader.onload = async (e) => {
           const dataUrl = e.target?.result as string;
-          // Calculate pages with pdfjs
-          const pdfjsLib = await import('pdfjs-dist');
-          if (!pdfjsLib.GlobalWorkerOptions.workerSrc) {
-            pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.mjs`;
+          let totalDocPages = 1;
+          try {
+            const doc = await loadPdfDocument(dataUrl);
+            totalDocPages = doc?.numPages || 1;
+          } catch (err) {
+            console.warn('Could not inspect PDF page count via loader:', err);
           }
-          const base64 = dataUrl.split(',')[1];
-          const binary = atob(base64);
-          const bytes = new Uint8Array(binary.length);
-          for (let i = 0; i < binary.length; i++) {
-            bytes[i] = binary.charCodeAt(i);
-          }
-          const doc = await pdfjsLib.getDocument({ data: bytes }).promise;
 
           const updated: Book = {
             ...book,
             fileType: 'pdf',
             fileName: file.name,
             fileData: dataUrl,
-            totalPages: doc.numPages || 1,
+            totalPages: totalDocPages,
             currentPage: 1,
             progress: 0,
           };
@@ -245,14 +213,9 @@ export const DualFolioReader: React.FC<DualFolioReaderProps> = ({
         };
         reader.readAsDataURL(file);
       } else if (fileName.endsWith('.docx')) {
-        // Parse with Mammoth
+        // Parse with dynamic Mammoth
         const arrayBuffer = await file.arrayBuffer();
-        const result = await mammoth.convertToHtml({ arrayBuffer });
-        const html = result.value;
-
-        // Estimate pages (approx 400 words per folio page)
-        const wordCount = html.replace(/<[^>]+>/g, ' ').split(/\s+/).filter(Boolean).length;
-        const estPages = Math.max(2, Math.ceil(wordCount / 350));
+        const { html, estimatedPages } = await parseDocx(arrayBuffer);
 
         setDocxHtml(html);
         const updated: Book = {
@@ -260,7 +223,7 @@ export const DualFolioReader: React.FC<DualFolioReaderProps> = ({
           fileType: 'docx',
           fileName: file.name,
           manuscriptHtml: html,
-          totalPages: estPages,
+          totalPages: estimatedPages,
           currentPage: 1,
           progress: 0,
         };

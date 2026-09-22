@@ -7,7 +7,7 @@ import { LibraryExportModal } from '@/components/library/LibraryExportModal';
 import { DualFolioReader } from '@/components/library/DualFolioReader';
 import { MentisRepository } from '@/lib/storage/repository';
 import { playPageTurnSound, playClickTactile } from '@/lib/scholarlyAudio';
-import mammoth from 'mammoth';
+import { loadPdfDocument, parseDocx } from '@/lib/documentParsers';
 import {
   BookOpen,
   Plus,
@@ -92,24 +92,23 @@ export const LibraryView: React.FC<LibraryViewProps> = ({
         const reader = new FileReader();
         reader.onload = async (e) => {
           const dataUrl = e.target?.result as string;
-          const pdfjsLib = await import('pdfjs-dist');
-          if (!pdfjsLib.GlobalWorkerOptions.workerSrc) {
-            pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.mjs`;
+          try {
+            const doc = await loadPdfDocument(dataUrl);
+            setUploadedFile({
+              name: fileName,
+              type: 'pdf',
+              data: dataUrl,
+            });
+            setNewPages(doc?.numPages || 100);
+          } catch (err) {
+            console.warn('Could not inspect PDF page count via loader:', err);
+            setUploadedFile({
+              name: fileName,
+              type: 'pdf',
+              data: dataUrl,
+            });
+            setNewPages(100);
           }
-          const base64 = dataUrl.split(',')[1];
-          const binary = atob(base64);
-          const bytes = new Uint8Array(binary.length);
-          for (let i = 0; i < binary.length; i++) {
-            bytes[i] = binary.charCodeAt(i);
-          }
-          const doc = await pdfjsLib.getDocument({ data: bytes }).promise;
-
-          setUploadedFile({
-            name: fileName,
-            type: 'pdf',
-            data: dataUrl,
-          });
-          setNewPages(doc.numPages || 100);
           if (!newTitle.trim()) {
             setNewTitle(fileName.replace(/\.[^/.]+$/, '').replace(/[-_]/g, ' '));
           }
@@ -119,17 +118,14 @@ export const LibraryView: React.FC<LibraryViewProps> = ({
         reader.readAsDataURL(file);
       } else if (lower.endsWith('.docx')) {
         const arrayBuffer = await file.arrayBuffer();
-        const result = await mammoth.convertToHtml({ arrayBuffer });
-        const html = result.value;
-        const words = html.replace(/<[^>]+>/g, ' ').split(/\s+/).filter(Boolean).length;
-        const estPages = Math.max(2, Math.ceil(words / 350));
+        const { html, estimatedPages } = await parseDocx(arrayBuffer);
 
         setUploadedFile({
           name: fileName,
           type: 'docx',
           html,
         });
-        setNewPages(estPages);
+        setNewPages(estimatedPages);
         if (!newTitle.trim()) {
           setNewTitle(fileName.replace(/\.[^/.]+$/, '').replace(/[-_]/g, ' '));
         }
