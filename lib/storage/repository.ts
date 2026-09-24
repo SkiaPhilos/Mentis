@@ -10,6 +10,8 @@ import {
   UserAiCredential,
   ManagedScholar,
   ApprovalStatus,
+  TransientTask,
+  StudySessionLog,
 } from '@/types/mentis';
 
 const STORAGE_KEYS = {
@@ -24,6 +26,9 @@ const STORAGE_KEYS = {
   AI_CREDENTIALS: 'mentis_user_ai_credentials',
   SCHOLARS: 'mentis_managed_scholars',
   ACTIVE_AUTH: 'mentis_active_auth_user',
+  MATRICULATION_COMPLETED: 'mentis_matriculation_completed',
+  TASKS: 'mentis_transient_tasks',
+  STUDY_LOGS: 'mentis_study_session_logs',
 };
 
 export const ACADEMIC_MAGIC_SPELLS: Record<string, string> = {
@@ -482,6 +487,127 @@ let cachedScholarsSnapshot: ManagedScholar[] = DEFAULT_SCHOLARS;
 let cachedActiveAuthRaw: string | null = null;
 let cachedActiveAuthSnapshot: UserProfile | null = null;
 
+export const DEFAULT_TRANSIENT_TASKS: TransientTask[] = [
+  {
+    id: 'task_1',
+    userId: 'scholar_usr_01',
+    title: "Derive Maxwell's 4th Equation from Ampere-Maxwell law",
+    courseId: 'course_phy2',
+    completed: false,
+    priority: 'vigilant',
+    dueTime: '15:00',
+    createdAt: '2026-09-23T08:00:00.000Z',
+  },
+  {
+    id: 'task_2',
+    userId: 'scholar_usr_01',
+    title: 'Inscribe marginalia on Chapter 4: Discrete Structures & Graphs',
+    courseId: 'course_cs',
+    completed: true,
+    priority: 'standard',
+    createdAt: '2026-09-22T19:30:00.000Z',
+    completedAt: '2026-09-23T07:15:00.000Z',
+  },
+  {
+    id: 'task_3',
+    userId: 'scholar_usr_01',
+    title: 'Engage Raziel in Socratic dialectic on Vector Divergence',
+    courseId: 'course_math',
+    completed: false,
+    priority: 'standard',
+    dueTime: '18:30',
+    createdAt: '2026-09-23T09:00:00.000Z',
+  },
+  {
+    id: 'task_4',
+    userId: 'scholar_usr_01',
+    title: 'Formulate preliminary thesis on Humean Epistemology',
+    courseId: 'course_phil',
+    completed: false,
+    priority: 'minor',
+    createdAt: '2026-09-23T10:00:00.000Z',
+  },
+];
+
+export const DEFAULT_STUDY_LOGS: StudySessionLog[] = [
+  {
+    id: 'slog_1',
+    userId: 'scholar_usr_01',
+    title: 'Vector Calculus Problem Set',
+    courseId: 'course_math',
+    durationMinutes: 75,
+    vigilType: 'deep_study',
+    notes: 'Solved Stokes Theorem exercises 1-8',
+    timestamp: '2026-09-17T14:30:00.000Z',
+  },
+  {
+    id: 'slog_2',
+    userId: 'scholar_usr_01',
+    title: 'Reading Vigil: Greek Epistemology',
+    courseId: 'course_phil',
+    durationMinutes: 60,
+    vigilType: 'reading',
+    notes: 'Theaetetus on knowledge as justified true belief',
+    timestamp: '2026-09-18T16:00:00.000Z',
+  },
+  {
+    id: 'slog_3',
+    userId: 'scholar_usr_01',
+    title: 'Dynamic Programming Proofs',
+    courseId: 'course_cs',
+    durationMinutes: 90,
+    vigilType: 'problem_drill',
+    notes: 'Optimal substructure & memoization tables',
+    timestamp: '2026-09-19T11:00:00.000Z',
+  },
+  {
+    id: 'slog_4',
+    userId: 'scholar_usr_01',
+    title: 'Electromagnetic Field Theory',
+    courseId: 'course_phy2',
+    durationMinutes: 110,
+    vigilType: 'deep_study',
+    notes: 'Faraday Law & displacement current',
+    timestamp: '2026-09-20T15:00:00.000Z',
+  },
+  {
+    id: 'slog_5',
+    userId: 'scholar_usr_01',
+    title: 'Automata Theory & Turing Machines',
+    courseId: 'course_cs',
+    durationMinutes: 80,
+    vigilType: 'revision',
+    notes: 'Halting problem diagonalization argument',
+    timestamp: '2026-09-21T18:00:00.000Z',
+  },
+  {
+    id: 'slog_6',
+    userId: 'scholar_usr_01',
+    title: 'Dialectic with Raziel on Ontology',
+    courseId: 'course_phil',
+    durationMinutes: 45,
+    vigilType: 'inquiry',
+    notes: 'Aristotelian categories vs. modern predicate logic',
+    timestamp: '2026-09-22T17:00:00.000Z',
+  },
+  {
+    id: 'slog_7',
+    userId: 'scholar_usr_01',
+    title: 'Optics & Wave Equation Lab',
+    courseId: 'course_phy2',
+    durationMinutes: 65,
+    vigilType: 'deep_study',
+    notes: 'Interferometer fringe measurements',
+    timestamp: '2026-09-23T09:30:00.000Z',
+  },
+];
+
+let cachedTasksRaw: string | null = null;
+let cachedTasksSnapshot: TransientTask[] = DEFAULT_TRANSIENT_TASKS;
+
+let cachedStudyLogsRaw: string | null = null;
+let cachedStudyLogsSnapshot: StudySessionLog[] = DEFAULT_STUDY_LOGS;
+
 // Unified Repository API
 export const MentisRepository = {
   // Store subscription for useSyncExternalStore
@@ -786,6 +912,11 @@ export const MentisRepository = {
     MentisRepository.saveSessions([session, ...list]);
   },
 
+  deleteSession: (id: string): void => {
+    const list = MentisRepository.getSessions().filter((s) => s.id !== id);
+    MentisRepository.saveSessions(list);
+  },
+
   // ---------------------------------------------------------------------------
   // AI Credentials & Arcane Magic Spells
   // ---------------------------------------------------------------------------
@@ -928,6 +1059,104 @@ export const MentisRepository = {
     }
     cachedActiveAuthRaw = null;
     cachedActiveAuthSnapshot = null;
+    emitChange();
+  },
+
+  // ---------------------------------------------------------------------------
+  // Transient Tasks
+  // ---------------------------------------------------------------------------
+  getDefaultTasks: (): TransientTask[] => DEFAULT_TRANSIENT_TASKS,
+
+  getTasksSnapshot: (): TransientTask[] => {
+    if (typeof window === 'undefined') return DEFAULT_TRANSIENT_TASKS;
+    try {
+      const raw = localStorage.getItem(STORAGE_KEYS.TASKS);
+      if (!raw) return DEFAULT_TRANSIENT_TASKS;
+      if (raw === cachedTasksRaw) return cachedTasksSnapshot;
+      cachedTasksRaw = raw;
+      cachedTasksSnapshot = JSON.parse(raw) as TransientTask[];
+      return cachedTasksSnapshot;
+    } catch {
+      return DEFAULT_TRANSIENT_TASKS;
+    }
+  },
+
+  getTasks: (): TransientTask[] => {
+    return getLocal<TransientTask[]>(STORAGE_KEYS.TASKS, DEFAULT_TRANSIENT_TASKS);
+  },
+
+  saveTasks: (tasks: TransientTask[]): void => {
+    setLocal(STORAGE_KEYS.TASKS, tasks);
+    cachedTasksRaw = JSON.stringify(tasks);
+    cachedTasksSnapshot = tasks;
+    emitChange();
+  },
+
+  addTask: (task: TransientTask): void => {
+    const list = MentisRepository.getTasks();
+    MentisRepository.saveTasks([task, ...list]);
+  },
+
+  toggleTask: (id: string): void => {
+    const list = MentisRepository.getTasks();
+    const updated = list.map((t) =>
+      t.id === id
+        ? {
+            ...t,
+            completed: !t.completed,
+            completedAt: !t.completed ? new Date().toISOString() : undefined,
+          }
+        : t
+    );
+    MentisRepository.saveTasks(updated);
+  },
+
+  deleteTask: (id: string): void => {
+    const list = MentisRepository.getTasks();
+    MentisRepository.saveTasks(list.filter((t) => t.id !== id));
+  },
+
+  // ---------------------------------------------------------------------------
+  // Study Session Logs (Study Velocity)
+  // ---------------------------------------------------------------------------
+  getDefaultStudyLogs: (): StudySessionLog[] => DEFAULT_STUDY_LOGS,
+
+  getStudyLogsSnapshot: (): StudySessionLog[] => {
+    if (typeof window === 'undefined') return DEFAULT_STUDY_LOGS;
+    try {
+      const raw = localStorage.getItem(STORAGE_KEYS.STUDY_LOGS);
+      if (!raw) return DEFAULT_STUDY_LOGS;
+      if (raw === cachedStudyLogsRaw) return cachedStudyLogsSnapshot;
+      cachedStudyLogsRaw = raw;
+      cachedStudyLogsSnapshot = JSON.parse(raw) as StudySessionLog[];
+      return cachedStudyLogsSnapshot;
+    } catch {
+      return DEFAULT_STUDY_LOGS;
+    }
+  },
+
+  getStudyLogs: (): StudySessionLog[] => {
+    return getLocal<StudySessionLog[]>(STORAGE_KEYS.STUDY_LOGS, DEFAULT_STUDY_LOGS);
+  },
+
+  saveStudyLogs: (logs: StudySessionLog[]): void => {
+    setLocal(STORAGE_KEYS.STUDY_LOGS, logs);
+    cachedStudyLogsRaw = JSON.stringify(logs);
+    cachedStudyLogsSnapshot = logs;
+    emitChange();
+  },
+
+  addStudyLog: (log: StudySessionLog): void => {
+    const list = MentisRepository.getStudyLogs();
+    MentisRepository.saveStudyLogs([log, ...list]);
+  },
+
+  isMatriculationCompleted: (): boolean => {
+    return getLocal<boolean>(STORAGE_KEYS.MATRICULATION_COMPLETED, false);
+  },
+
+  setMatriculationCompleted: (completed: boolean): void => {
+    setLocal(STORAGE_KEYS.MATRICULATION_COMPLETED, completed);
     emitChange();
   },
 };

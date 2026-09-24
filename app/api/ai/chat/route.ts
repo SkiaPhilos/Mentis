@@ -42,6 +42,7 @@ export async function POST(req: NextRequest) {
       encryptedKey,
       magicSpell,
       model = 'gemini-3.8-flash',
+      useSearchGrounding = false,
     } = await req.json();
 
     if (!messages || !Array.isArray(messages) || messages.length === 0) {
@@ -76,34 +77,66 @@ export async function POST(req: NextRequest) {
     const personaPrompt = PERSONA_PROMPTS[persona] || PERSONA_PROMPTS.raziel;
     const modeInstruction = MODE_INSTRUCTIONS[mode] || MODE_INSTRUCTIONS.socratic;
 
-    const systemInstruction = `${personaPrompt}\n\nCURRENT ACADEMIC MODE: ${modeInstruction}\n\nAlways maintain the dignified, scholarly atmosphere of Mentis. Never break character into generic boilerplate. Format formulas and proofs with mathematical precision.`;
+    const systemInstruction = `${personaPrompt}\n\nCURRENT ACADEMIC MODE: ${modeInstruction}\n\nAlways maintain the dignified, scholarly atmosphere of Mentis. Never break character into generic boilerplate. Format formulas and proofs with mathematical precision.${useSearchGrounding ? ' Cite real-world sources and modern empirical findings when grounding academic claims.' : ''}`;
 
     const contents = messages.map((m: { role: string; content: string }) => ({
       role: m.role === 'assistant' ? 'model' : 'user',
       parts: [{ text: m.content }],
     }));
 
-    // Ensure non-deprecated modern model
-    const targetModel =
-      model.includes('gemini-3.8') || model.includes('gemini-3.1')
+    // Target model: use gemini-3.5-flash with googleSearch tool when search grounding is active
+    const targetModel = useSearchGrounding
+      ? 'gemini-3.5-flash'
+      : model.includes('gemini-3.8') || model.includes('gemini-3.1') || model.includes('gemini-3.5')
         ? model
         : 'gemini-3.8-flash';
+
+    interface GenerateConfig {
+      systemInstruction: string;
+      temperature: number;
+      tools?: Array<{ googleSearch: Record<string, never> }>;
+    }
+
+    const config: GenerateConfig = {
+      systemInstruction,
+      temperature: 0.7,
+    };
+
+    if (useSearchGrounding) {
+      config.tools = [{ googleSearch: {} }];
+    }
 
     const result = await ai.models.generateContent({
       model: targetModel,
       contents,
-      config: {
-        systemInstruction,
-        temperature: 0.7,
-      },
+      config,
     });
 
     const responseText = result.text || 'The scholar contemplator returned silence.';
+
+    // Extract Google Search Grounding Metadata
+    const candidate = result.candidates?.[0];
+    const groundingMetadata = candidate?.groundingMetadata;
+    const searchQueries: string[] = (groundingMetadata?.webSearchQueries as string[]) || [];
+    const searchSources: Array<{ title: string; url: string }> = [];
+
+    if (groundingMetadata?.groundingChunks) {
+      for (const chunk of groundingMetadata.groundingChunks) {
+        if (chunk.web?.uri) {
+          searchSources.push({
+            title: chunk.web.title || chunk.web.uri,
+            url: chunk.web.uri,
+          });
+        }
+      }
+    }
 
     return NextResponse.json({
       response: responseText,
       model: targetModel,
       source,
+      searchQueries,
+      searchSources,
     });
   } catch (err: unknown) {
     const errorMsg = err instanceof Error ? err.message : 'AI communication failure';

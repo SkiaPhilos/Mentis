@@ -1,9 +1,11 @@
 'use client';
 
 import React, { useState, useEffect, useRef, useSyncExternalStore } from 'react';
-import { AIPersonaId, AILearningMode, ChatMessage, Course } from '@/types/mentis';
+import { AIPersonaId, AILearningMode, ChatMessage, Course, LearningSession, Note, NoteBlock } from '@/types/mentis';
+import { ActiveTab } from '@/components/layout/ScholarlyShell';
 import { ScholarlyLearningIcon } from '@/components/icons/ScholarlyIcons';
 import { MentisRepository } from '@/lib/storage/repository';
+import { SavedSessionsModal } from './SavedSessionsModal';
 import {
   Send,
   Key,
@@ -16,6 +18,13 @@ import {
   CheckCircle2,
   Lock,
   Scroll,
+  History,
+  BookmarkPlus,
+  RotateCcw,
+  FileText,
+  Check,
+  ExternalLink,
+  Globe,
 } from 'lucide-react';
 import { VoiceDictationButton } from '@/components/ai/VoiceDictationButton';
 import {
@@ -28,6 +37,8 @@ import {
 
 interface LearningSanctuaryViewProps {
   courses: Course[];
+  onAddNote?: (note: Note) => void;
+  onNavigate?: (tab: ActiveTab) => void;
 }
 
 const PERSONAS: { id: AIPersonaId; name: string; title: string; desc: string; motif: string }[] = [
@@ -78,7 +89,11 @@ const MODES: { id: AILearningMode; label: string; desc: string }[] = [
   { id: 'summary', label: 'Axiomatic Synthesis', desc: 'Concise theorem cheat-sheet' },
 ];
 
-export const LearningSanctuaryView: React.FC<LearningSanctuaryViewProps> = ({ courses }) => {
+export const LearningSanctuaryView: React.FC<LearningSanctuaryViewProps> = ({
+  courses,
+  onAddNote,
+  onNavigate,
+}) => {
   const [selectedPersona, setSelectedPersona] = useState<AIPersonaId>('raziel');
   const [selectedMode, setSelectedMode] = useState<AILearningMode>('socratic');
   const [selectedCourseId, setSelectedCourseId] = useState<string>(courses[0]?.id || '');
@@ -90,6 +105,17 @@ export const LearningSanctuaryView: React.FC<LearningSanctuaryViewProps> = ({ co
     MentisRepository.getDefaultAiCredentials
   );
 
+  // Synchronized Learning Sessions from Repository
+  const savedSessions = useSyncExternalStore(
+    MentisRepository.subscribe,
+    MentisRepository.getSessionsSnapshot,
+    MentisRepository.getDefaultSessions
+  );
+
+  const [isSessionsModalOpen, setIsSessionsModalOpen] = useState(false);
+  const [inscribeNotice, setInscribeNotice] = useState<string | null>(null);
+  const [saveNotice, setSaveNotice] = useState<string | null>(null);
+
   const [localKeyInput, setLocalKeyInput] = useState<string>('');
   const [isKeyDrawerOpen, setIsKeyDrawerOpen] = useState<boolean>(false);
   const [isKeySaving, setIsKeySaving] = useState<boolean>(false);
@@ -98,6 +124,7 @@ export const LearningSanctuaryView: React.FC<LearningSanctuaryViewProps> = ({ co
 
   const [inputMessage, setInputMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [useSearchGrounding, setUseSearchGrounding] = useState<boolean>(true);
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       id: 'm_welcome',
@@ -235,6 +262,7 @@ export const LearningSanctuaryView: React.FC<LearningSanctuaryViewProps> = ({ co
           encryptedKey: aiCredentials.encryptedKey || undefined,
           magicSpell: aiCredentials.magicSpell || undefined,
           model: aiCredentials.modelPreference || 'gemini-3.8-flash',
+          useSearchGrounding,
         }),
       });
 
@@ -246,6 +274,8 @@ export const LearningSanctuaryView: React.FC<LearningSanctuaryViewProps> = ({ co
           role: 'assistant',
           content: data.response || 'The sanctuary echoes with thoughtful silence.',
           timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          searchSources: data.searchSources,
+          searchQueries: data.searchQueries,
         };
         setMessages((prev) => [...prev, assistantMsg]);
       } else {
@@ -268,6 +298,138 @@ export const LearningSanctuaryView: React.FC<LearningSanctuaryViewProps> = ({ co
   };
 
   const activePersonaObj = PERSONAS.find((p) => p.id === selectedPersona) || PERSONAS[0];
+
+  const handleSaveCurrentSession = () => {
+    if (messages.length <= 1) return;
+    playParchmentRustle();
+    const firstUserMsg = messages.find((m) => m.role === 'user')?.content || '';
+    const sessionTitle = firstUserMsg
+      ? firstUserMsg.slice(0, 48) + (firstUserMsg.length > 48 ? '...' : '')
+      : `Dialectic with ${activePersonaObj.name}`;
+
+    const newSession: LearningSession = {
+      id: `session_${Date.now()}`,
+      userId: 'user_1',
+      courseId: selectedCourseId || undefined,
+      title: sessionTitle,
+      persona: selectedPersona,
+      mode: selectedMode,
+      topic: sessionTitle,
+      messages: [...messages],
+      savedAt: new Date().toISOString(),
+    };
+
+    MentisRepository.addSession(newSession);
+    setSaveNotice('Dialogue thread preserved in Socratic Archive.');
+    setTimeout(() => setSaveNotice(null), 3500);
+  };
+
+  const handleInscribeCurrentToNote = () => {
+    if (messages.length <= 1) return;
+    playQuillScratch();
+
+    const activeCourse = courses.find((c) => c.id === selectedCourseId);
+    const firstUserMsg = messages.find((m) => m.role === 'user')?.content || '';
+    const noteTitle = firstUserMsg
+      ? `Dialectic: ${firstUserMsg.slice(0, 40)}...`
+      : `Inquiry with ${activePersonaObj.name} on ${activeCourse?.code || 'Discipline'}`;
+
+    const noteBlocks: NoteBlock[] = [
+      {
+        id: `b_hdr_${Date.now()}`,
+        type: 'heading',
+        content: `Socratic Dialogue: ${activePersonaObj.name} (${activePersonaObj.title})`,
+      },
+      {
+        id: `b_meta_${Date.now()}`,
+        type: 'quote',
+        content: `Discipline: ${activeCourse ? `${activeCourse.code} - ${activeCourse.name}` : 'General Inquiry'} • Mode: ${selectedMode} • Inscribed on ${new Date().toLocaleDateString(undefined, { dateStyle: 'medium' })}`,
+      },
+      ...messages.map((m, idx) => ({
+        id: `b_msg_${idx}_${Date.now()}`,
+        type: m.role === 'user' ? ('paragraph' as const) : ('quote' as const),
+        content: m.role === 'user' ? `**Scholar:** ${m.content}` : `**${activePersonaObj.name}:** ${m.content}`,
+      })),
+    ];
+
+    const newNote: Note = {
+      id: `note_${Date.now()}`,
+      userId: 'user_1',
+      courseId: selectedCourseId || undefined,
+      title: noteTitle,
+      blocks: noteBlocks,
+      tags: ['dialectic', activePersonaObj.name.toLowerCase(), selectedMode],
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+
+    MentisRepository.addNote(newNote);
+    if (onAddNote) onAddNote(newNote);
+
+    setInscribeNotice('Manuscript note inscribed from your Socratic dialogue.');
+    setTimeout(() => setInscribeNotice(null), 4500);
+  };
+
+  const handleInscribeSavedSessionToNote = (session: LearningSession) => {
+    playQuillScratch();
+    const course = courses.find((c) => c.id === session.courseId);
+    const personaObj = PERSONAS.find((p) => p.id === session.persona) || activePersonaObj;
+
+    const noteBlocks: NoteBlock[] = [
+      {
+        id: `b_hdr_${Date.now()}`,
+        type: 'heading',
+        content: `Archived Dialectic: ${personaObj.name} (${personaObj.title})`,
+      },
+      {
+        id: `b_meta_${Date.now()}`,
+        type: 'quote',
+        content: `Discipline: ${course ? `${course.code} - ${course.name}` : 'General Inquiry'} • Mode: ${session.mode} • Inscribed on ${new Date().toLocaleDateString(undefined, { dateStyle: 'medium' })}`,
+      },
+      ...session.messages.map((m, idx) => ({
+        id: `b_msg_${idx}_${Date.now()}`,
+        type: m.role === 'user' ? ('paragraph' as const) : ('quote' as const),
+        content: m.role === 'user' ? `**Scholar:** ${m.content}` : `**${personaObj.name}:** ${m.content}`,
+      })),
+    ];
+
+    const newNote: Note = {
+      id: `note_${Date.now()}`,
+      userId: 'user_1',
+      courseId: session.courseId,
+      title: session.title || `Inquiry with ${personaObj.name}`,
+      blocks: noteBlocks,
+      tags: ['dialectic', personaObj.name.toLowerCase(), session.mode, 'archive'],
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+
+    MentisRepository.addNote(newNote);
+    if (onAddNote) onAddNote(newNote);
+
+    setInscribeNotice(`Preserved session "${session.title}" inscribed to Manuscripts.`);
+    setTimeout(() => setInscribeNotice(null), 4500);
+  };
+
+  const handleResumeSession = (session: LearningSession) => {
+    setSelectedPersona(session.persona);
+    setSelectedMode(session.mode);
+    if (session.courseId) setSelectedCourseId(session.courseId);
+    setMessages(session.messages);
+    playParchmentRustle();
+  };
+
+  const handleResetConversation = () => {
+    playParchmentRustle();
+    setMessages([
+      {
+        id: `m_welcome_${Date.now()}`,
+        role: 'assistant',
+        content: `Greetings, Scholar. I am ${activePersonaObj.name}. In what discipline shall we seek foundational clarity today?`,
+        timestamp: 'Matins',
+      },
+    ]);
+  };
 
   return (
     <div className="space-y-5">
@@ -446,7 +608,7 @@ export const LearningSanctuaryView: React.FC<LearningSanctuaryViewProps> = ({ co
       {/* Active Dialogue Chamber */}
       <div className="parchment-card rounded-2xl p-5 sm:p-6 flex flex-col h-[520px] shadow-sm">
         {/* Active Session Bar */}
-        <div className="flex items-center justify-between pb-3 border-b border-[#E3DAC1] mb-4 text-xs font-serif-scholarly">
+        <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-[#E3DAC1] mb-4 text-xs font-serif-scholarly">
           <div className="flex items-center gap-2">
             <ScholarlyLearningIcon size={18} active />
             <span className="font-bold text-[#173B2D]">{activePersonaObj.name}</span>
@@ -454,21 +616,110 @@ export const LearningSanctuaryView: React.FC<LearningSanctuaryViewProps> = ({ co
             <span className="text-[#8E7541] capitalize">{selectedMode} Mode</span>
           </div>
 
-          <div className="flex items-center gap-2">
-            <BookOpen className="w-3.5 h-3.5 text-[#8E7541]" />
-            <select
-              value={selectedCourseId}
-              onChange={(e) => setSelectedCourseId(e.target.value)}
-              className="bg-transparent border border-[#E3DAC1] rounded-lg px-2 py-0.5 text-xs text-[#173B2D]"
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="flex items-center gap-1.5">
+              <BookOpen className="w-3.5 h-3.5 text-[#8E7541]" />
+              <select
+                value={selectedCourseId}
+                onChange={(e) => setSelectedCourseId(e.target.value)}
+                className="bg-transparent border border-[#E3DAC1] rounded-lg px-2 py-0.5 text-xs text-[#173B2D]"
+              >
+                {courses.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.code}: {c.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="h-4 w-px bg-[#E3DAC1] mx-0.5 hidden sm:block" />
+
+            {/* Search Grounding Toggle Button */}
+            <button
+              type="button"
+              onClick={() => {
+                playClickTactile();
+                setUseSearchGrounding(!useSearchGrounding);
+              }}
+              title={
+                useSearchGrounding
+                  ? 'Google Search Grounding Active (gemini-3.5-flash with live sources)'
+                  : 'Enable Google Search Grounding for live citations'
+              }
+              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs font-serif-scholarly transition-all cursor-pointer ${
+                useSearchGrounding
+                  ? 'bg-[#173B2D] text-[#F3EEDB] border-[#B59A62] shadow-xs'
+                  : 'bg-[#FAF7EE] text-[#202820]/60 border-[#E3DAC1] hover:text-[#173B2D]'
+              }`}
             >
-              {courses.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.code}: {c.name}
-                </option>
-              ))}
-            </select>
+              <Globe className={`w-3.5 h-3.5 ${useSearchGrounding ? 'text-[#D4AF37]' : 'text-[#8E7541]'}`} />
+              <span className="hidden sm:inline">Search Grounding</span>
+            </button>
+
+            {/* Inscribe to Note Button */}
+            <button
+              onClick={handleInscribeCurrentToNote}
+              disabled={messages.length <= 1}
+              title="Inscribe this dialogue into a Manuscript note"
+              className="flex items-center gap-1 px-2.5 py-1 rounded-lg border border-[#B59A62]/60 bg-[#FAF7EE] hover:bg-[#F3EEDB] text-[#8E7541] disabled:opacity-40 disabled:pointer-events-none transition-colors cursor-pointer"
+            >
+              <FileText className="w-3.5 h-3.5 text-[#B59A62]" />
+              <span className="hidden md:inline">Inscribe Note</span>
+            </button>
+
+            {/* Save Session Button */}
+            <button
+              onClick={handleSaveCurrentSession}
+              disabled={messages.length <= 1}
+              title="Archive current Socratic session"
+              className="flex items-center gap-1 px-2.5 py-1 rounded-lg border border-[#E3DAC1] bg-[#FAF7EE] hover:bg-[#F3EEDB] text-[#173B2D] disabled:opacity-40 disabled:pointer-events-none transition-colors cursor-pointer"
+            >
+              <BookmarkPlus className="w-3.5 h-3.5 text-[#8E7541]" />
+              <span className="hidden md:inline">Save</span>
+            </button>
+
+            {/* Archived Sessions Modal Button */}
+            <button
+              onClick={() => {
+                playClickTactile();
+                setIsSessionsModalOpen(true);
+              }}
+              title="View archived Socratic discussions"
+              className="flex items-center gap-1 px-2.5 py-1 rounded-lg border border-[#E3DAC1] bg-[#FAF7EE] hover:bg-[#F3EEDB] text-[#173B2D] transition-colors cursor-pointer"
+            >
+              <History className="w-3.5 h-3.5 text-[#8E7541]" />
+              <span>Archive ({savedSessions.length})</span>
+            </button>
+
+            {/* Fresh Vigil Reset Button */}
+            <button
+              onClick={handleResetConversation}
+              title="Begin a fresh dialogue vigil"
+              className="p-1 rounded-lg text-[#202820]/60 hover:text-[#173B2D] hover:bg-[#EAE2C8] transition-colors cursor-pointer"
+            >
+              <RotateCcw className="w-3.5 h-3.5" />
+            </button>
           </div>
         </div>
+
+        {/* Inscribe or Save Feedback Banner */}
+        {(inscribeNotice || saveNotice) && (
+          <div className="mb-3 px-3 py-2 rounded-xl bg-[#FAF7EE] border border-[#B59A62] flex items-center justify-between text-xs font-serif-scholarly text-[#173B2D] animate-in fade-in duration-200">
+            <div className="flex items-center gap-2">
+              <Check className="w-3.5 h-3.5 text-emerald-700" />
+              <span>{inscribeNotice || saveNotice}</span>
+            </div>
+            {inscribeNotice && onNavigate && (
+              <button
+                onClick={() => onNavigate('notes')}
+                className="flex items-center gap-1 text-[11px] text-[#8E7541] hover:underline font-bold cursor-pointer"
+              >
+                <span>Open in Manuscripts</span>
+                <ExternalLink className="w-3 h-3" />
+              </button>
+            )}
+          </div>
+        )}
 
         {/* Message Log */}
         <div className="flex-1 overflow-y-auto space-y-4 pr-2">
@@ -497,6 +748,31 @@ export const LearningSanctuaryView: React.FC<LearningSanctuaryViewProps> = ({ co
                   }`}
                 >
                   <p className="whitespace-pre-wrap">{msg.content}</p>
+
+                  {/* Grounded Google Search Sources */}
+                  {isAsst && msg.searchSources && msg.searchSources.length > 0 && (
+                    <div className="mt-2.5 pt-2 border-t border-[#E3DAC1] text-[11px] font-sans">
+                      <div className="text-[10px] font-serif-scholarly font-bold text-[#8E7541] uppercase tracking-wider mb-1 flex items-center gap-1">
+                        <Globe className="w-3 h-3 text-[#8E7541]" />
+                        <span>Grounded Scholarly Sources ({msg.searchSources.length})</span>
+                      </div>
+                      <div className="flex flex-wrap gap-1.5 mt-1">
+                        {msg.searchSources.map((src, sIdx) => (
+                          <a
+                            key={sIdx}
+                            href={src.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-[#EAE2C8]/70 hover:bg-[#E2D6B5] text-[#173B2D] border border-[#E3DAC1] text-[10px] truncate max-w-xs transition-colors cursor-pointer"
+                          >
+                            <span className="truncate">{src.title}</span>
+                            <ExternalLink className="w-2.5 h-2.5 shrink-0 opacity-60" />
+                          </a>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
                   <span
                     className={`block text-[10px] mt-1.5 opacity-50 ${
                       isAsst ? 'text-right' : 'text-left'
@@ -545,6 +821,15 @@ export const LearningSanctuaryView: React.FC<LearningSanctuaryViewProps> = ({ co
           </button>
         </form>
       </div>
+
+      <SavedSessionsModal
+        isOpen={isSessionsModalOpen}
+        onClose={() => setIsSessionsModalOpen(false)}
+        sessions={savedSessions}
+        courses={courses}
+        onResumeSession={handleResumeSession}
+        onInscribeSessionToNote={handleInscribeSavedSessionToNote}
+      />
     </div>
   );
 };

@@ -57,6 +57,7 @@ interface ProfileViewProps {
   onAddCourse: (course: Course) => void;
   onDeleteCourse: (id: string) => void;
   onUpdateAiCredentials: (credentials: UserAiCredential) => void;
+  onOpenMatriculation?: () => void;
 }
 
 export const ProfileView: React.FC<ProfileViewProps> = ({
@@ -67,6 +68,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
   onAddCourse,
   onDeleteCourse,
   onUpdateAiCredentials,
+  onOpenMatriculation,
 }) => {
   const [isEditingAvatar, setIsEditingAvatar] = useState(false);
   const [profileForm, setProfileForm] = useState<UserProfile>(profile);
@@ -286,6 +288,16 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
             >
               {isEditingAvatar ? 'Close Avatar Gallery' : 'Change Scholar Avatar'}
             </button>
+            {onOpenMatriculation && (
+              <button
+                type="button"
+                onClick={onOpenMatriculation}
+                className="mt-2 px-3 py-1 rounded-xl bg-[#F3EEDB] border border-[#B59A62]/60 hover:bg-[#EAE2C8] text-[11px] font-serif-scholarly font-bold text-[#8E7541] transition-colors cursor-pointer flex items-center gap-1.5"
+              >
+                <Scroll className="w-3.5 h-3.5 text-[#B59A62]" />
+                <span>Matriculation Ceremony</span>
+              </button>
+            )}
           </div>
 
           <div className="flex-1 w-full text-center sm:text-left">

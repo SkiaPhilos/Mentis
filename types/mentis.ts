@@ -128,6 +128,11 @@ export type AILearningMode =
   | 'explain'
   | 'summary';
 
+export interface SearchGroundingSource {
+  title: string;
+  url: string;
+}
+
 export interface ChatMessage {
   id: string;
   role: 'user' | 'assistant' | 'system';
@@ -138,6 +143,8 @@ export interface ChatMessage {
     title: string;
     payload: Record<string, unknown>;
   };
+  searchSources?: SearchGroundingSource[];
+  searchQueries?: string[];
 }
 
 export interface LearningSession {
@@ -152,6 +159,29 @@ export interface LearningSession {
   summary?: string;
   contextSources?: string[];
   savedAt: string;
+}
+
+export interface TransientTask {
+  id: string;
+  userId: string;
+  title: string;
+  courseId?: string;
+  completed: boolean;
+  priority: 'vigilant' | 'standard' | 'minor';
+  dueTime?: string;
+  createdAt: string;
+  completedAt?: string;
+}
+
+export interface StudySessionLog {
+  id: string;
+  userId: string;
+  title: string;
+  courseId?: string;
+  durationMinutes: number;
+  vigilType: 'deep_study' | 'problem_drill' | 'revision' | 'inquiry' | 'reading';
+  notes?: string;
+  timestamp: string; // ISO date
 }
 
 export type AIProvider = 'gemini' | 'openai' | 'anthropic' | 'custom';

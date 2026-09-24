@@ -4,8 +4,9 @@ import React, { useState } from 'react';
 import { Note, Course, NoteBlock } from '@/types/mentis';
 import { MentisRepository } from '@/lib/storage/repository';
 import { ScholarlyNotesIcon } from '@/components/icons/ScholarlyIcons';
-import { Plus, Trash2, Tag, Search, Sparkles, ArrowLeft, BookOpen, Quote, Code, Heading } from 'lucide-react';
+import { Plus, Trash2, Tag, Search, Sparkles, ArrowLeft, BookOpen, Quote, Code, Heading, Camera } from 'lucide-react';
 import { VoiceDictationButton } from '@/components/ai/VoiceDictationButton';
+import { OCRUploadModal } from '@/components/ocr/OCRUploadModal';
 import { playParchmentRustle, playQuillScratch, playClickTactile } from '@/lib/audio/soundEffects';
 
 interface NotesViewProps {
@@ -37,6 +38,7 @@ export const NotesView: React.FC<NotesViewProps> = ({
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCourseFilter, setSelectedCourseFilter] = useState<string>('all');
   const [isGeneratingAI, setIsGeneratingAI] = useState(false);
+  const [isOCROpen, setIsOCROpen] = useState(false);
 
   const activeNote = notes.find((n) => n.id === activeNoteId);
 
@@ -189,6 +191,41 @@ export const NotesView: React.FC<NotesViewProps> = ({
     }
   };
 
+  const handleOCRInsertToActiveNote = (text: string) => {
+    if (!activeNote) return;
+    const newBlock: NoteBlock = {
+      id: createScholarlyId('block_ocr'),
+      type: 'ocr',
+      content: text,
+    };
+    onUpdateNote({
+      ...activeNote,
+      blocks: [...activeNote.blocks, newBlock],
+      updatedAt: new Date().toISOString(),
+    });
+  };
+
+  const handleOCRCreateNewNote = (title: string, text: string) => {
+    const newNote: Note = {
+      id: createScholarlyId('note_ocr'),
+      userId: 'user_1',
+      title: title || 'Transcribed Manuscript Note',
+      courseId: selectedCourseFilter !== 'all' ? selectedCourseFilter : undefined,
+      tags: ['ocr', 'transcription'],
+      blocks: [
+        {
+          id: createScholarlyId('block_1'),
+          type: 'ocr',
+          content: text,
+        },
+      ],
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+    onAddNote(newNote);
+    setActiveNoteId(newNote.id);
+  };
+
   return (
     <div className="space-y-5">
       {/* Header */}
@@ -202,13 +239,27 @@ export const NotesView: React.FC<NotesViewProps> = ({
           </p>
         </div>
 
-        <button
-          onClick={handleCreateNewNote}
-          className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-[#173B2D] text-[#F3EEDB] hover:bg-[#122E23] text-xs font-serif-scholarly font-medium shadow-xs transition-colors self-start sm:self-auto"
-        >
-          <Plus className="w-3.5 h-3.5 text-[#B59A62]" />
-          <span>New Manuscript</span>
-        </button>
+        <div className="flex items-center gap-2 self-start sm:self-auto">
+          <button
+            onClick={() => {
+              playClickTactile();
+              setIsOCROpen(true);
+            }}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#FAF7EE] text-[#8E7541] border border-[#B59A62]/60 hover:bg-[#F3EEDB] text-xs font-serif-scholarly font-medium shadow-xs transition-colors cursor-pointer"
+            title="Transcribe study image, screenshot or diagram via Gemini Vision"
+          >
+            <Camera className="w-3.5 h-3.5 text-[#B59A62]" />
+            <span>Scan Folio / OCR</span>
+          </button>
+
+          <button
+            onClick={handleCreateNewNote}
+            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-[#173B2D] text-[#F3EEDB] hover:bg-[#122E23] text-xs font-serif-scholarly font-medium shadow-xs transition-colors cursor-pointer"
+          >
+            <Plus className="w-3.5 h-3.5 text-[#B59A62]" />
+            <span>New Manuscript</span>
+          </button>
+        </div>
       </div>
 
       {/* Main Workspace Layout */}
@@ -331,6 +382,18 @@ export const NotesView: React.FC<NotesViewProps> = ({
                     onTranscription={handleAppendDictatedParagraph}
                     tooltip="Dictate voice transcription into new paragraph"
                   />
+
+                  <button
+                    onClick={() => {
+                      playClickTactile();
+                      setIsOCROpen(true);
+                    }}
+                    className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-serif-scholarly text-[#8E7541] bg-[#FAF7EE] border border-[#B59A62]/50 hover:bg-[#FAF7EE] rounded-xl transition-colors cursor-pointer"
+                    title="Scan study screenshot or diagram and transcribe into this note"
+                  >
+                    <Camera className="w-3.5 h-3.5 text-[#B59A62]" />
+                    <span className="hidden sm:inline">OCR Scan</span>
+                  </button>
 
                   <button
                     onClick={handleAISummarize}
@@ -510,6 +573,16 @@ export const NotesView: React.FC<NotesViewProps> = ({
                   <Code className="w-3 h-3" />
                   <span>Formula / Code</span>
                 </button>
+                <button
+                  onClick={() => {
+                    playClickTactile();
+                    setIsOCROpen(true);
+                  }}
+                  className="px-2.5 py-1 rounded-lg bg-[#FAF7EE] border border-[#B59A62]/60 hover:bg-[#F3EEDB] text-[#8E7541] flex items-center gap-1"
+                >
+                  <Camera className="w-3 h-3 text-[#B59A62]" />
+                  <span>Transcribe Folio (OCR)</span>
+                </button>
               </div>
             </div>
           ) : (
@@ -525,6 +598,14 @@ export const NotesView: React.FC<NotesViewProps> = ({
           )}
         </div>
       </div>
+
+      <OCRUploadModal
+        isOpen={isOCROpen}
+        onClose={() => setIsOCROpen(false)}
+        onInsertToActiveNote={handleOCRInsertToActiveNote}
+        onCreateNewNote={handleOCRCreateNewNote}
+        hasActiveNote={!!activeNote}
+      />
     </div>
   );
 };

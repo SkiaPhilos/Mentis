@@ -28,8 +28,13 @@ import {
   MapPin,
   Calendar,
   Sparkles,
+  GraduationCap,
 } from 'lucide-react';
+import { MentisRepository } from '@/lib/storage/repository';
 import { ActiveTab } from '@/components/layout/ScholarlyShell';
+import { StudyVelocityChart } from '@/components/desk/StudyVelocityChart';
+import { DailyTransientTasksList } from '@/components/desk/DailyTransientTasksList';
+import { QuickActionsFloatingButton } from '@/components/desk/QuickActionsFloatingButton';
 
 // Deterministic Time & Date Store using useSyncExternalStore
 interface TimeSnapshot {
@@ -93,6 +98,7 @@ interface DailyDeskViewProps {
   onNavigate: (tab: ActiveTab) => void;
   onOpenBook: (book: Book) => void;
   onOpenNote: (note: Note) => void;
+  onOpenMatriculation?: () => void;
 }
 
 export const DailyDeskView: React.FC<DailyDeskViewProps> = ({
@@ -105,6 +111,7 @@ export const DailyDeskView: React.FC<DailyDeskViewProps> = ({
   onNavigate,
   onOpenBook,
   onOpenNote,
+  onOpenMatriculation,
 }) => {
   // Pure external store subscription - zero cascading render setState in effect
   const { greeting: timeGreeting, formattedDate, dayIndex } = useSyncExternalStore(
@@ -114,6 +121,19 @@ export const DailyDeskView: React.FC<DailyDeskViewProps> = ({
   );
 
   const [guideEmotion, setGuideEmotion] = useState<'idle' | 'smile' | 'celebratory' | 'curious'>('smile');
+  const isMatriculated = MentisRepository.isMatriculationCompleted();
+
+  const tasks = useSyncExternalStore(
+    MentisRepository.subscribe,
+    MentisRepository.getTasksSnapshot,
+    MentisRepository.getDefaultTasks
+  );
+
+  const studyLogs = useSyncExternalStore(
+    MentisRepository.subscribe,
+    MentisRepository.getStudyLogsSnapshot,
+    MentisRepository.getDefaultStudyLogs
+  );
 
   // Filter today's classes based on deterministic dayIndex
   const todayClasses = schedule
@@ -152,9 +172,21 @@ export const DailyDeskView: React.FC<DailyDeskViewProps> = ({
             <h2 className="font-serif-scholarly text-2xl sm:text-3xl font-bold text-[#173B2D] mt-1 tracking-tight">
               {timeGreeting}, {profile.fullName.split(' ')[0]}
             </h2>
-            <p className="text-xs sm:text-sm text-[#202820]/75 font-sans mt-1 max-w-xl">
-              Your study desk is prepared. {courses.length} courses active across {profile.institution}.
-            </p>
+            <div className="flex flex-wrap items-center gap-3 mt-1.5">
+              <p className="text-xs sm:text-sm text-[#202820]/75 font-sans max-w-xl">
+                Your study desk is prepared. {courses.length} courses active across {profile.institution}.
+              </p>
+              {onOpenMatriculation && (
+                <button
+                  onClick={onOpenMatriculation}
+                  title="Matriculation Ceremony & Academic Dossier"
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[#FAF7EE] hover:bg-[#EAE2C8] border border-[#B59A62]/60 text-[11px] font-serif-scholarly font-bold text-[#8E7541] transition-colors cursor-pointer"
+                >
+                  <Sparkles className="w-3 h-3 text-[#B59A62]" />
+                  <span>Matriculation Dossier</span>
+                </button>
+              )}
+            </div>
           </div>
 
           <div className="flex items-center gap-4 bg-[#EAE2C8]/70 p-3 rounded-2xl border border-[#E3DAC1] shrink-0">
@@ -178,6 +210,37 @@ export const DailyDeskView: React.FC<DailyDeskViewProps> = ({
           </div>
         </div>
       </div>
+
+      {/* Matriculation Ceremony Invitation Banner if not yet completed */}
+      {!isMatriculated && onOpenMatriculation && (
+        <div className="parchment-card rounded-2xl p-4 sm:p-5 border-l-4 border-l-[#173B2D] bg-[#F3EEDB] flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm animate-in fade-in duration-300">
+          <div className="flex items-start gap-3.5">
+            <div className="w-10 h-10 rounded-xl bg-[#173B2D] text-[#D4AF37] flex items-center justify-center shrink-0 shadow-xs">
+              <GraduationCap className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="px-2 py-0.5 rounded text-[10px] font-serif-scholarly font-bold uppercase tracking-wider bg-[#173B2D] text-[#D4AF37]">
+                  First-Time Induction
+                </span>
+                <span className="text-xs text-[#8E7541] font-serif-scholarly font-semibold">
+                  Matriculation Ceremony Awaits
+                </span>
+              </div>
+              <p className="text-xs text-[#202820]/80 font-sans mt-1">
+                Formalize your scholarly persona avatar, verify curriculum disciplines, and inscribe your academic oath.
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={onOpenMatriculation}
+            className="self-start sm:self-auto px-4 py-2 rounded-xl bg-[#173B2D] text-[#F3EEDB] hover:bg-[#122E23] text-xs font-serif-scholarly font-bold flex items-center gap-1.5 transition-colors shadow-xs cursor-pointer shrink-0"
+          >
+            <span>Begin Induction</span>
+            <ArrowRight className="w-3.5 h-3.5 text-[#B59A62]" />
+          </button>
+        </div>
+      )}
 
       {/* Leave-By Commute Alert & Next Academic Commitment */}
       {leaveBy && (
@@ -240,8 +303,17 @@ export const DailyDeskView: React.FC<DailyDeskViewProps> = ({
         </motion.div>
       )}
 
-      {/* Two-Column Grid: Currently Reading & Recent Manuscripts */}
+      {/* Study Velocity & Scholarly Cadence Dashboard */}
+      <StudyVelocityChart notes={notes} books={books} studyLogs={studyLogs} />
+
+      {/* Two-Column Grid: Daily Transient Quests & Current Reading */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Daily Transient Tasks / Quests */}
+        <DailyTransientTasksList
+          tasks={tasks}
+          courses={courses}
+        />
+
         {/* Active Library Reading Card */}
         <div className="parchment-card rounded-2xl p-5 flex flex-col justify-between">
           <div>
@@ -313,6 +385,10 @@ export const DailyDeskView: React.FC<DailyDeskViewProps> = ({
             )}
           </div>
         </div>
+      </div>
+
+      {/* Two-Column Grid: Recent Manuscripts & AI Sanctuary */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
         {/* Recent Manuscripts (Notes) */}
         <div className="parchment-card rounded-2xl p-5 flex flex-col justify-between">
@@ -406,6 +482,12 @@ export const DailyDeskView: React.FC<DailyDeskViewProps> = ({
           </button>
         </div>
       </div>
+
+      {/* Floating Quick Scholarly Actions (Log Study Session, Add Transient Task, Rapid Thought) */}
+      <QuickActionsFloatingButton
+        courses={courses}
+        onNoteCreated={onOpenNote}
+      />
     </div>
   );
 };

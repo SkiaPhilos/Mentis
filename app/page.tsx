@@ -14,6 +14,7 @@ import { AuthProvider, useAuth } from '@/lib/auth/AuthContext';
 import { AuthGateView } from '@/components/auth/AuthGateView';
 import { PendingApprovalView } from '@/components/auth/PendingApprovalView';
 import { MentisRepository } from '@/lib/storage/repository';
+import { MatriculationWizardModal } from '@/components/onboarding/MatriculationWizardModal';
 import {
   UserProfile,
   Course,
@@ -65,10 +66,23 @@ function MentisSanctuary() {
   // Deep-link / cross-navigation state
   const [activeBookToRead, setActiveBookToRead] = useState<Book | null>(null);
   const [activeNoteToEdit, setActiveNoteToEdit] = useState<string | null>(null);
+  const [isMatriculationOpen, setIsMatriculationOpen] = useState(false);
 
   // Mutation handlers with reactive repository synchronization
   const handleUpdateProfile = (updated: UserProfile) => {
     MentisRepository.saveProfile(updated);
+  };
+
+  const handleMatriculationComplete = (
+    updatedProfile: UserProfile,
+    newCourses: Course[],
+    newCommute: CommuteProfile
+  ) => {
+    handleUpdateProfile(updatedProfile);
+    if (newCourses.length > 0) {
+      MentisRepository.saveCourses(newCourses);
+    }
+    handleUpdateCommute(newCommute);
   };
 
   const handleAddCourse = (course: Course) => {
@@ -181,6 +195,7 @@ function MentisSanctuary() {
                 onNavigate={setActiveTab}
                 onOpenBook={handleOpenBook}
                 onOpenNote={handleOpenNote}
+                onOpenMatriculation={() => setIsMatriculationOpen(true)}
               />
             )}
 
@@ -218,7 +233,11 @@ function MentisSanctuary() {
             )}
 
             {activeTab === 'learning' && (
-              <LearningSanctuaryView courses={courses} />
+              <LearningSanctuaryView
+                courses={courses}
+                onAddNote={handleAddNote}
+                onNavigate={setActiveTab}
+              />
             )}
 
             {activeTab === 'profile' && (
@@ -230,6 +249,7 @@ function MentisSanctuary() {
                 onAddCourse={handleAddCourse}
                 onDeleteCourse={handleDeleteCourse}
                 onUpdateAiCredentials={handleUpdateAiCredentials}
+                onOpenMatriculation={() => setIsMatriculationOpen(true)}
               />
             )}
 
@@ -238,6 +258,15 @@ function MentisSanctuary() {
             )}
           </motion.div>
         </AnimatePresence>
+
+        <MatriculationWizardModal
+          isOpen={isMatriculationOpen}
+          onClose={() => setIsMatriculationOpen(false)}
+          currentUser={profile}
+          initialCourses={courses}
+          initialCommute={commute}
+          onComplete={handleMatriculationComplete}
+        />
       </ScholarlyShell>
     );
 }
