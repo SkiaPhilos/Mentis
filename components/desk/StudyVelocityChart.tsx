@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   ResponsiveContainer,
   BarChart,
@@ -86,6 +86,11 @@ export const StudyVelocityChart: React.FC<StudyVelocityChartProps> = ({
 }) => {
   const [viewMode, setViewMode] = useState<VelocityViewMode>('activity');
   const [chartType, setChartType] = useState<'bar' | 'area'>('bar');
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   // Compute 7-day trailing velocity data
   const data: DayVelocityData[] = useMemo(() => {
@@ -268,8 +273,13 @@ export const StudyVelocityChart: React.FC<StudyVelocityChartProps> = ({
 
       {/* Main Recharts Container */}
       <div className="h-60 sm:h-64 w-full mt-2">
-        <ResponsiveContainer width="100%" height="100%">
-          {chartType === 'bar' ? (
+        {!mounted ? (
+          <div className="h-full w-full rounded-xl bg-[#FAF7EE]/50 border border-dashed border-[#E3DAC1] flex items-center justify-center">
+            <span className="text-xs font-serif-scholarly text-[#8E7541]/70">Rendering scholarly metrics...</span>
+          </div>
+        ) : (
+          <ResponsiveContainer width="100%" height="100%">
+            {chartType === 'bar' ? (
             <BarChart data={data} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#E3DAC1" vertical={false} />
               <XAxis
@@ -389,6 +399,7 @@ export const StudyVelocityChart: React.FC<StudyVelocityChartProps> = ({
             </AreaChart>
           )}
         </ResponsiveContainer>
+        )}
       </div>
 
       <div className="mt-3 pt-3 border-t border-[#E3DAC1] flex items-center justify-between text-xs text-[#202820]/70 font-sans">

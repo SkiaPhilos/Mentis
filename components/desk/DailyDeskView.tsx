@@ -30,11 +30,23 @@ import {
   Sparkles,
   GraduationCap,
 } from 'lucide-react';
+import dynamic from 'next/dynamic';
 import { MentisRepository } from '@/lib/storage/repository';
 import { ActiveTab } from '@/components/layout/ScholarlyShell';
-import { StudyVelocityChart } from '@/components/desk/StudyVelocityChart';
 import { DailyTransientTasksList } from '@/components/desk/DailyTransientTasksList';
 import { QuickActionsFloatingButton } from '@/components/desk/QuickActionsFloatingButton';
+
+const StudyVelocityChart = dynamic(
+  () => import('@/components/desk/StudyVelocityChart').then((mod) => mod.StudyVelocityChart),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="h-64 rounded-2xl bg-[#F7F3E8]/80 border border-[#E3DAC1] animate-pulse flex items-center justify-center text-sm font-serif-scholarly text-[#8E7541]">
+        Illuminating study cadence...
+      </div>
+    ),
+  }
+);
 
 // Deterministic Time & Date Store using useSyncExternalStore
 interface TimeSnapshot {
