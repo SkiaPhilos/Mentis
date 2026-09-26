@@ -475,8 +475,10 @@ let cachedBooksSnapshot: Book[] = DEFAULT_BOOKS;
 let cachedNotesRaw: string | null = null;
 let cachedNotesSnapshot: Note[] = DEFAULT_NOTES;
 
+export const DEFAULT_SESSIONS: LearningSession[] = [];
+
 let cachedSessionsRaw: string | null = null;
-let cachedSessionsSnapshot: LearningSession[] = [];
+let cachedSessionsSnapshot: LearningSession[] = DEFAULT_SESSIONS;
 
 let cachedAiCredentialsRaw: string | null = null;
 let cachedAiCredentialsSnapshot: UserAiCredential = DEFAULT_AI_CREDENTIALS;
@@ -880,19 +882,19 @@ export const MentisRepository = {
   // ---------------------------------------------------------------------------
   // Learning Sessions
   // ---------------------------------------------------------------------------
-  getDefaultSessions: (): LearningSession[] => [],
+  getDefaultSessions: (): LearningSession[] => DEFAULT_SESSIONS,
 
   getSessionsSnapshot: (): LearningSession[] => {
-    if (typeof window === 'undefined') return [];
+    if (typeof window === 'undefined') return DEFAULT_SESSIONS;
     try {
       const raw = localStorage.getItem(STORAGE_KEYS.SESSIONS);
-      if (!raw) return [];
+      if (!raw) return DEFAULT_SESSIONS;
       if (raw === cachedSessionsRaw) return cachedSessionsSnapshot;
       cachedSessionsRaw = raw;
       cachedSessionsSnapshot = JSON.parse(raw) as LearningSession[];
       return cachedSessionsSnapshot;
     } catch {
-      return [];
+      return DEFAULT_SESSIONS;
     }
   },
 

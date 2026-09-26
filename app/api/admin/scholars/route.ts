@@ -1,18 +1,42 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createAdminClient } from '@/lib/supabase/server';
+import {
+  createAdminClient,
+  isSupabaseServerConfigured,
+  getSupabaseServerUrl,
+  getSupabaseServerAnonKey,
+} from '@/lib/supabase/server';
 import {
   isSmtpConfigured,
+  getSmtpCredentials,
   sendScholarRegistrationNotification,
   sendScholarStatusDecisionEmail,
 } from '@/lib/email/mailer';
 
 export async function GET(req: NextRequest) {
   const adminClient = createAdminClient();
+  const smtpCreds = getSmtpCredentials();
   const smtpActive = isSmtpConfigured();
   const ownerEmail = process.env.OWNER_EMAIL || 'abdullahsaeed.sam@gmail.com';
   const adminEmails = (process.env.ADMIN_EMAILS || ownerEmail)
     .split(',')
     .map((e) => e.trim().toLowerCase());
+
+  const diagnostics = {
+    smtpConfigured: smtpActive,
+    hasSmtpUser: Boolean(smtpCreds.user),
+    hasSmtpPass: Boolean(smtpCreds.pass),
+    maskedUser: smtpCreds.user
+      ? smtpCreds.user.includes('@')
+        ? smtpCreds.user.replace(/(.{2})(.*)(@.*)/, '$1***$3')
+        : `${smtpCreds.user.slice(0, 3)}***`
+      : null,
+    smtpHost: smtpCreds.host,
+    smtpPort: smtpCreds.port,
+    supabaseConfigured: isSupabaseServerConfigured(),
+    hasSupabaseUrl: Boolean(getSupabaseServerUrl()),
+    hasSupabaseAnonKey: Boolean(getSupabaseServerAnonKey()),
+    hasSupabaseServiceKey: Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY?.trim()),
+  };
 
   // Check if Supabase has stored profiles
   if (adminClient) {
@@ -29,6 +53,8 @@ export async function GET(req: NextRequest) {
           scholars: profiles,
           smtpConfigured: smtpActive,
           ownerEmail,
+          adminEmails,
+          diagnostics,
         });
       }
     } catch {
@@ -42,7 +68,8 @@ export async function GET(req: NextRequest) {
     smtpConfigured: smtpActive,
     ownerEmail,
     adminEmails,
-    smtpHost: process.env.SMTP_HOST || 'smtp.gmail.com',
+    smtpHost: smtpCreds.host,
+    diagnostics,
   });
 }
 

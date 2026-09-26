@@ -19,11 +19,41 @@ export interface MailerResult {
 }
 
 /**
+ * Normalizes and extracts SMTP configuration from various environment variable conventions.
+ */
+export function getSmtpCredentials() {
+  const host = (process.env.SMTP_HOST || 'smtp.gmail.com').trim();
+  const port = parseInt(process.env.SMTP_PORT || '465', 10);
+  const secure = process.env.SMTP_SECURE ? process.env.SMTP_SECURE === 'true' : port === 465;
+
+  // Support common naming conventions
+  const user = (
+    process.env.SMTP_USER ||
+    process.env.SMTP_EMAIL ||
+    process.env.GMAIL_USER ||
+    process.env.EMAIL_USER
+  )?.trim().replace(/^["']|["']$/g, '');
+
+  const rawPass = (
+    process.env.SMTP_PASS ||
+    process.env.SMTP_PASSWORD ||
+    process.env.GMAIL_APP_PASSWORD ||
+    process.env.EMAIL_PASS ||
+    process.env.EMAIL_PASSWORD ||
+    process.env.SMTP_KEY
+  )?.trim().replace(/^["']|["']$/g, '');
+
+  // Google App Passwords are 16 characters and frequently formatted with spaces (e.g. "abcd efgh ijkl mnop")
+  const pass = rawPass?.replace(/\s+/g, '');
+
+  return { host, port, secure, user, pass };
+}
+
+/**
  * Validates whether Google SMTP credentials are present in server environment.
  */
 export function isSmtpConfigured(): boolean {
-  const user = process.env.SMTP_USER?.trim();
-  const pass = process.env.SMTP_PASS?.trim();
+  const { user, pass } = getSmtpCredentials();
   return Boolean(user && pass);
 }
 
@@ -33,11 +63,7 @@ export function isSmtpConfigured(): boolean {
  * Default Port: 465 (secure SSL) or 587 (STARTTLS)
  */
 function createSmtpTransporter() {
-  const host = process.env.SMTP_HOST || 'smtp.gmail.com';
-  const port = parseInt(process.env.SMTP_PORT || '465', 10);
-  const secure = process.env.SMTP_SECURE ? process.env.SMTP_SECURE === 'true' : port === 465;
-  const user = process.env.SMTP_USER?.trim();
-  const pass = process.env.SMTP_PASS?.trim()?.replace(/\s+/g, ''); // Google App Passwords often contain spaces
+  const { host, port, secure, user, pass } = getSmtpCredentials();
 
   if (!user || !pass) {
     return null;

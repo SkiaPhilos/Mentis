@@ -22,6 +22,7 @@ const nextConfig: NextConfig = {
   // Standalone output is only for Docker containers; omit for Vercel/Standard builds so _next/static chunks are preserved
   output: process.env.BUILD_STANDALONE === 'true' ? 'standalone' : undefined,
   transpilePackages: ['motion'],
+  serverExternalPackages: ['@google/genai'],
   webpack: (config, {dev}) => {
     // HMR is disabled in AI Studio via DISABLE_HMR env var.
     // Do not modifyâfile watching is disabled to prevent flickering during agent edits.

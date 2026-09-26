@@ -26,6 +26,15 @@ interface SmtpStatus {
   smtpConfigured: boolean;
   ownerEmail: string;
   smtpHost?: string;
+  diagnostics?: {
+    hasSmtpUser: boolean;
+    hasSmtpPass: boolean;
+    maskedUser: string | null;
+    supabaseConfigured: boolean;
+    hasSupabaseUrl: boolean;
+    hasSupabaseAnonKey: boolean;
+    hasSupabaseServiceKey: boolean;
+  };
 }
 
 export const AdminView: React.FC<AdminViewProps> = ({ currentUser }) => {
@@ -57,6 +66,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ currentUser }) => {
             smtpConfigured: data.smtpConfigured,
             ownerEmail: data.ownerEmail || 'abdullahsaeed.sam@gmail.com',
             smtpHost: data.smtpHost || 'smtp.gmail.com',
+            diagnostics: data.diagnostics,
           });
         }
       })
@@ -208,9 +218,39 @@ export const AdminView: React.FC<AdminViewProps> = ({ currentUser }) => {
                     Google Account &gt; App Passwords
                   </a>{' '}
                   and specify <code className="bg-[#EAE2C8] px-1 py-0.5 rounded">SMTP_USER</code> &amp;{' '}
-                  <code className="bg-[#EAE2C8] px-1 py-0.5 rounded">SMTP_PASS</code> in your environment.
+                  <code className="bg-[#EAE2C8] px-1 py-0.5 rounded">SMTP_PASS</code> in your Vercel Environment Variables.
                 </div>
               )}
+            </div>
+          </div>
+        )}
+
+        {/* Live Vercel Environment Diagnostics Bar */}
+        {smtpStatus.diagnostics && (
+          <div className="pt-2 border-t border-[#E3DAC1]/70 grid grid-cols-2 sm:grid-cols-4 gap-2 text-[11px] font-mono">
+            <div className="p-2 rounded-xl bg-[#F3EEDB] border border-[#E3DAC1] flex flex-col">
+              <span className="text-[#8E7541] font-sans text-[10px]">SMTP User / Email</span>
+              <span className={`font-bold ${smtpStatus.diagnostics.hasSmtpUser ? 'text-[#173B2D]' : 'text-rose-700'}`}>
+                {smtpStatus.diagnostics.hasSmtpUser ? (smtpStatus.diagnostics.maskedUser || 'Detected') : 'Missing'}
+              </span>
+            </div>
+            <div className="p-2 rounded-xl bg-[#F3EEDB] border border-[#E3DAC1] flex flex-col">
+              <span className="text-[#8E7541] font-sans text-[10px]">SMTP App Password</span>
+              <span className={`font-bold ${smtpStatus.diagnostics.hasSmtpPass ? 'text-[#173B2D]' : 'text-rose-700'}`}>
+                {smtpStatus.diagnostics.hasSmtpPass ? 'Detected (Active)' : 'Missing (16-char)'}
+              </span>
+            </div>
+            <div className="p-2 rounded-xl bg-[#F3EEDB] border border-[#E3DAC1] flex flex-col">
+              <span className="text-[#8E7541] font-sans text-[10px]">Supabase Database URL</span>
+              <span className={`font-bold ${smtpStatus.diagnostics.hasSupabaseUrl ? 'text-[#173B2D]' : 'text-amber-800'}`}>
+                {smtpStatus.diagnostics.hasSupabaseUrl ? 'Connected' : 'Missing URL'}
+              </span>
+            </div>
+            <div className="p-2 rounded-xl bg-[#F3EEDB] border border-[#E3DAC1] flex flex-col">
+              <span className="text-[#8E7541] font-sans text-[10px]">Supabase Anon Key</span>
+              <span className={`font-bold ${smtpStatus.diagnostics.hasSupabaseAnonKey ? 'text-[#173B2D]' : 'text-amber-800'}`}>
+                {smtpStatus.diagnostics.hasSupabaseAnonKey ? 'Loaded' : 'Missing Key'}
+              </span>
             </div>
           </div>
         )}

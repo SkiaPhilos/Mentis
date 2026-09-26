@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useSyncExternalStore } from 'react';
+import React, { useState, useEffect, useSyncExternalStore } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { ScholarlyShell, ActiveTab } from '@/components/layout/ScholarlyShell';
 import { DailyDeskView } from '@/components/desk/DailyDeskView';
@@ -15,6 +15,18 @@ import { AuthGateView } from '@/components/auth/AuthGateView';
 import { PendingApprovalView } from '@/components/auth/PendingApprovalView';
 import { MentisRepository } from '@/lib/storage/repository';
 import { MatriculationWizardModal } from '@/components/onboarding/MatriculationWizardModal';
+import {
+  loadUserSupabaseData,
+  syncCourseToSupabase,
+  syncDeleteCourseFromSupabase,
+  syncScheduleBlockToSupabase,
+  syncDeleteScheduleBlockFromSupabase,
+  syncCommuteToSupabase,
+  syncBookToSupabase,
+  syncDeleteBookFromSupabase,
+  syncNoteToSupabase,
+  syncDeleteNoteFromSupabase,
+} from '@/lib/supabase/dataSync';
 import {
   UserProfile,
   Course,
@@ -63,12 +75,19 @@ function MentisSanctuary() {
     MentisRepository.getDefaultAiCredentials
   );
 
+  // Synchronize authenticated user data from Supabase PostgreSQL database
+  useEffect(() => {
+    if (user?.id) {
+      loadUserSupabaseData(user.id);
+    }
+  }, [user?.id]);
+
   // Deep-link / cross-navigation state
   const [activeBookToRead, setActiveBookToRead] = useState<Book | null>(null);
   const [activeNoteToEdit, setActiveNoteToEdit] = useState<string | null>(null);
   const [isMatriculationOpen, setIsMatriculationOpen] = useState(false);
 
-  // Mutation handlers with reactive repository synchronization
+  // Mutation handlers with reactive repository synchronization & Supabase cloud persistence
   const handleUpdateProfile = (updated: UserProfile) => {
     MentisRepository.saveProfile(updated);
   };
@@ -81,53 +100,65 @@ function MentisSanctuary() {
     handleUpdateProfile(updatedProfile);
     if (newCourses.length > 0) {
       MentisRepository.saveCourses(newCourses);
+      newCourses.forEach((c) => syncCourseToSupabase(c));
     }
     handleUpdateCommute(newCommute);
   };
 
   const handleAddCourse = (course: Course) => {
     MentisRepository.addCourse(course);
+    syncCourseToSupabase(course);
   };
 
   const handleDeleteCourse = (id: string) => {
     const next = courses.filter((c) => c.id !== id);
     MentisRepository.saveCourses(next);
+    syncDeleteCourseFromSupabase(id);
   };
 
   const handleAddScheduleBlock = (block: ScheduleBlock) => {
     MentisRepository.addScheduleBlock(block);
+    syncScheduleBlockToSupabase(block);
   };
 
   const handleUpdateScheduleBlock = (block: ScheduleBlock) => {
     MentisRepository.updateScheduleBlock(block);
+    syncScheduleBlockToSupabase(block);
   };
 
   const handleDeleteScheduleBlock = (id: string) => {
     MentisRepository.deleteScheduleBlock(id);
+    syncDeleteScheduleBlockFromSupabase(id);
   };
 
   const handleUpdateCommute = (updated: CommuteProfile) => {
     MentisRepository.saveCommute(updated);
+    syncCommuteToSupabase(updated);
   };
 
   const handleAddBook = (book: Book) => {
     MentisRepository.addBook(book);
+    syncBookToSupabase(book);
   };
 
   const handleUpdateBook = (book: Book) => {
     MentisRepository.updateBook(book);
+    syncBookToSupabase(book);
   };
 
   const handleAddNote = (note: Note) => {
     MentisRepository.addNote(note);
+    syncNoteToSupabase(note);
   };
 
   const handleUpdateNote = (note: Note) => {
     MentisRepository.updateNote(note);
+    syncNoteToSupabase(note);
   };
 
   const handleDeleteNote = (id: string) => {
     MentisRepository.deleteNote(id);
+    syncDeleteNoteFromSupabase(id);
   };
 
   const handleUpdateAiCredentials = (updated: UserAiCredential) => {

@@ -31,7 +31,7 @@ CREATE TABLE IF NOT EXISTS public.profiles (
 -- Academic courses enrolled by the scholar.
 -- ------------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS public.courses (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
   user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
   name TEXT NOT NULL,
   code TEXT NOT NULL,
@@ -49,9 +49,9 @@ CREATE INDEX IF NOT EXISTS idx_courses_user_id ON public.courses(user_id);
 -- Weekly scheduled lectures, laboratories, study sessions, and commitments.
 -- ------------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS public.schedule_blocks (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
   user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
-  course_id UUID REFERENCES public.courses(id) ON DELETE SET NULL,
+  course_id TEXT REFERENCES public.courses(id) ON DELETE SET NULL,
   title TEXT NOT NULL,
   day_of_week INTEGER NOT NULL CHECK (day_of_week >= 0 AND day_of_week <= 6), -- 0=Mon ... 6=Sun
   start_minutes INTEGER NOT NULL CHECK (start_minutes >= 0 AND start_minutes <= 1440),
@@ -83,9 +83,9 @@ CREATE TABLE IF NOT EXISTS public.commute_profiles (
 -- Bookshelf codices, manuals, and reading progress.
 -- ------------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS public.books (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
   user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
-  course_id UUID REFERENCES public.courses(id) ON DELETE SET NULL,
+  course_id TEXT REFERENCES public.courses(id) ON DELETE SET NULL,
   title TEXT NOT NULL,
   author TEXT NOT NULL,
   category TEXT NOT NULL DEFAULT 'General',
@@ -104,9 +104,9 @@ CREATE INDEX IF NOT EXISTS idx_books_user_id ON public.books(user_id);
 -- Structured manuscript notes containing blocks (heading, paragraph, quote, code).
 -- ------------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS public.notes (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
   user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
-  course_id UUID REFERENCES public.courses(id) ON DELETE SET NULL,
+  course_id TEXT REFERENCES public.courses(id) ON DELETE SET NULL,
   title TEXT NOT NULL,
   blocks JSONB NOT NULL DEFAULT '[]'::jsonb,
   tags TEXT[] NOT NULL DEFAULT '{}',
@@ -122,9 +122,9 @@ CREATE INDEX IF NOT EXISTS idx_notes_course_id ON public.notes(course_id);
 -- Socratic AI dialogue sessions with the scholarly personas.
 -- ------------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS public.learning_sessions (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
   user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
-  course_id UUID REFERENCES public.courses(id) ON DELETE SET NULL,
+  course_id TEXT REFERENCES public.courses(id) ON DELETE SET NULL,
   title TEXT NOT NULL,
   persona TEXT NOT NULL DEFAULT 'raziel',
   mode TEXT NOT NULL DEFAULT 'socratic',
